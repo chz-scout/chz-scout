@@ -215,7 +215,7 @@ main ──●──────────────────●───
 ## Project Structure (클린 아키텍처 기반)
 
 ```
-src/main/java/com/vatti/chzscoute/backend/
+src/main/java/com/vatti/chzscout/backend/
 ├── example/                    # 샘플 도메인
 │   ├── presentation/           # Controller
 │   ├── application/
