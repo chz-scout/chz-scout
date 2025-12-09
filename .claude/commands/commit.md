@@ -1,18 +1,20 @@
-# Claude Command: Commit
+---
+allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git commit:*), Bash(git diff:*), Bash(git log:*)
+argument-hint: [message] | --no-verify | --amend
+description: Create well-formatted commits with conventional commit format and emoji
+---
 
-This command helps you create well-formatted commits with conventional commit messages and emoji.
+# Smart Git Commit
 
-## Usage
+Create well-formatted commit: $ARGUMENTS
 
-To create a commit, just type:
-```
-/commit
-```
+## Current Repository State
 
-Or with options:
-```
-/commit --no-verify
-```
+- Git status: !`git status --porcelain`
+- Current branch: !`git branch --show-current`
+- Staged changes: !`git diff --cached --stat`
+- Unstaged changes: !`git diff --stat`
+- Recent commits: !`git log --oneline -5`
 
 ## What This Command Does
 
