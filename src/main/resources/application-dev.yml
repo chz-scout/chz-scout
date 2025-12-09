@@ -1,0 +1,49 @@
+# Development Profile
+spring:
+  # Database - Dev MySQL
+  datasource:
+    url: jdbc:mysql://${DB_HOST:dev-db-host}:${DB_PORT:3306}/${DB_NAME:chz_scout}?useSSL=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+
+  # JPA - Dev Settings
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+  # Redis - Dev
+  data:
+    redis:
+      host: ${REDIS_HOST:dev-redis-host}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+# Server
+server:
+  port: 8080
+
+# Logging
+logging:
+  level:
+    com.vatti.chzscout: DEBUG
+    org.hibernate.SQL: DEBUG
+
+# External API Keys (environment variables required)
+chzzk:
+  api:
+    base-url: https://api.chzzk.naver.com
+    client-id: ${CHZZK_CLIENT_ID}
+    client-secret: ${CHZZK_CLIENT_SECRET}
+
+discord:
+  bot:
+    token: ${DISCORD_BOT_TOKEN}
+
+openai:
+  api:
+    key: ${OPENAI_API_KEY}

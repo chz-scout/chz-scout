@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: chz-scout
+  profiles:
+    active: local
+
+  # JPA Common Settings
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        format_sql: true
+        default_batch_fetch_size: 100
+
+  # Jackson Settings
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    default-property-inclusion: non_null
+
+# Server Common Settings
+server:
+  servlet:
+    context-path: /api
+
+# Logging Common Settings
+logging:
+  level:
+    root: INFO
+    com.vatti.chzscout: INFO
+
+# Swagger (SpringDoc OpenAPI) Common Settings
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha

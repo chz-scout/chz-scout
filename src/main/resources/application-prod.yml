@@ -1,0 +1,59 @@
+# Production Profile
+spring:
+  # Database - Production MySQL
+  datasource:
+    url: jdbc:mysql://${DB_HOST}:${DB_PORT:3306}/${DB_NAME}?useSSL=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 10
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # JPA - Production Settings
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        generate_statistics: false
+
+  # Redis - Production
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+
+# Server
+server:
+  port: ${SERVER_PORT:8080}
+  tomcat:
+    max-threads: 200
+    accept-count: 100
+
+# Logging - Production level
+logging:
+  level:
+    root: WARN
+    com.vatti.chzscout: INFO
+    org.hibernate.SQL: WARN
+
+# External API Keys (environment variables required)
+chzzk:
+  api:
+    base-url: https://api.chzzk.naver.com
+    client-id: ${CHZZK_CLIENT_ID}
+    client-secret: ${CHZZK_CLIENT_SECRET}
+
+discord:
+  bot:
+    token: ${DISCORD_BOT_TOKEN}
+
+openai:
+  api:
+    key: ${OPENAI_API_KEY}

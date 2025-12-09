@@ -1,0 +1,49 @@
+# Local Development Profile
+spring:
+  # Database - Local MySQL
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:chz_scout}?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+
+  # JPA - Local Settings
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+  # Redis - Local
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+# Server
+server:
+  port: 8080
+
+# Logging - Debug level for local
+logging:
+  level:
+    com.vatti.chzscout: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+# External API Keys (use environment variables or .env file)
+chzzk:
+  api:
+    base-url: https://api.chzzk.naver.com
+    client-id: ${CHZZK_CLIENT_ID:your-client-id}
+    client-secret: ${CHZZK_CLIENT_SECRET:your-client-secret}
+
+discord:
+  bot:
+    token: ${DISCORD_BOT_TOKEN:your-bot-token}
+
+openai:
+  api:
+    key: ${OPENAI_API_KEY:your-api-key}
