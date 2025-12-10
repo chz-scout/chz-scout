@@ -10,8 +10,8 @@ import lombok.NoArgsConstructor;
 /**
  * 회원-태그 연결 엔티티.
  *
- * <p>BaseRelationEntity를 상속하여 Soft Delete 대신 Hard Delete를 사용합니다. 연결 테이블은 "관계"를 표현하므로 삭제 후
- * 재생성이 자유롭습니다.
+ * <p>BaseRelationEntity를 상속하여 Soft Delete 대신 Hard Delete를 사용합니다. 연결 테이블은 "관계"를 표현하므로 삭제 후 재생성이
+ * 자유롭습니다.
  */
 @Entity
 @Getter
