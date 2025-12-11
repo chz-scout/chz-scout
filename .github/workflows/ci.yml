@@ -52,6 +52,9 @@ jobs:
       - name: Generate test coverage report
         run: ./gradlew jacocoTestReport
 
+      - name: Verify test coverage (minimum 60%)
+        run: ./gradlew jacocoTestCoverageVerification
+
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()

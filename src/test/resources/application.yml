@@ -43,3 +43,7 @@ logging:
   level:
     com.vatti.chzscout: DEBUG
     org.hibernate.SQL: DEBUG
+
+# Encryption (test-only key - safe to hardcode for tests)
+encryption:
+  key: test-only-encryption-key-32chars!
