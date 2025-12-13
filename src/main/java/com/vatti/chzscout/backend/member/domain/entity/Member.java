@@ -7,6 +7,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -16,6 +17,10 @@ import lombok.NoArgsConstructor;
 @Table(name = "member")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Member extends BaseEntity {
+
+  /** 외부 노출용 고유 식별자. API 응답, JWT에 사용. */
+  @Column(name = "uuid", nullable = false, unique = true, updatable = false)
+  private String uuid;
 
   @Column(name = "discord_id", nullable = false, unique = true)
   private String discordId;
@@ -41,9 +46,14 @@ public class Member extends BaseEntity {
   @Column(name = "name_hash")
   private String nameHash;
 
+  @Column(name = "role")
+  private String role;
+
   private Member(String discordId, String discordUsername) {
+    this.uuid = UUID.randomUUID().toString();
     this.discordId = discordId;
     this.discordUsername = discordUsername;
+    this.role = "USER";
   }
 
   /**
@@ -51,7 +61,7 @@ public class Member extends BaseEntity {
    *
    * @param discordId Discord 사용자 ID
    * @param discordUsername Discord 사용자명
-   * @return 새로운 Member 인스턴스
+   * @return 새로운 Member 인스턴스 (uuid 자동 생성)
    */
   public static Member create(String discordId, String discordUsername) {
     return new Member(discordId, discordUsername);
