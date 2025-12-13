@@ -43,6 +43,8 @@ chzzk:
 discord:
   bot:
     token: ${DISCORD_BOT_TOKEN:your-bot-token}
+  oauth:
+    redirect-uri: http://localhost:8080/api/auth/callback
 
 openai:
   api:
