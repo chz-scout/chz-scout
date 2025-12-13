@@ -162,7 +162,7 @@ class RefreshTokenServiceTest {
       // when & then
       assertThatThrownBy(() -> refreshTokenService.reissue(testRefreshToken))
           .isInstanceOf(BadRequestException.class)
-          .hasMessage("No refresh token founded");
+          .hasMessage("No refresh token found");
     }
   }
 }

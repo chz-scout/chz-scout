@@ -49,7 +49,7 @@ public class RefreshTokenService {
     }
     String jti = jwtTokenProvider.getJti(refreshToken);
     if (findByJti(jti) == null) {
-      throw new BadRequestException("No refresh token founded");
+      throw new BadRequestException("No refresh token found");
     }
 
     String uuid = jwtTokenProvider.getUuid(refreshToken);

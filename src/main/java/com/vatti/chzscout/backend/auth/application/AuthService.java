@@ -35,7 +35,7 @@ public class AuthService {
         .map(
             member -> {
               // 사용자명 변경 시 업데이트 (Dirty Checking으로 자동 반영)
-              if (!member.getNickname().equals(nickname)) {
+              if (nickname != null && !member.getNickname().equals(nickname)) {
                 log.info("Discord 사용자명 변경: {} -> {}", member.getNickname(), nickname);
                 member.updateNickname(nickname);
               }
