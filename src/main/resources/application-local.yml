@@ -13,7 +13,7 @@ spring:
   # JPA - Local Settings
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: create
     show-sql: true
 
   # Redis - Local
@@ -25,6 +25,10 @@ spring:
 # Server
 server:
   port: 8080
+
+# CORS
+cors:
+  allowed-origins: http://localhost:5173
 
 # Logging - Debug level for local
 logging:
@@ -43,6 +47,8 @@ chzzk:
 discord:
   bot:
     token: ${DISCORD_BOT_TOKEN:your-bot-token}
+  oauth:
+    redirect-uri: http://localhost:5173/api/auth/callback
 
 openai:
   api:

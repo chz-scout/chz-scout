@@ -7,6 +7,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -17,11 +18,15 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Member extends BaseEntity {
 
+  /** 외부 노출용 고유 식별자. API 응답, JWT에 사용. */
+  @Column(name = "uuid", nullable = false, unique = true, updatable = false)
+  private String uuid;
+
   @Column(name = "discord_id", nullable = false, unique = true)
   private String discordId;
 
-  @Column(name = "discord_username", nullable = false)
-  private String discordUsername;
+  @Column(name = "nickname", nullable = false)
+  private String nickname;
 
   /** 암호화되어 저장됨. 복호화된 평문으로 조회됨. */
   @Convert(converter = StringEncryptConverter.class)
@@ -32,38 +37,38 @@ public class Member extends BaseEntity {
   @Column(name = "email_hash", unique = true)
   private String emailHash;
 
-  /** 암호화되어 저장됨. 복호화된 평문으로 조회됨. */
-  @Convert(converter = StringEncryptConverter.class)
-  @Column(name = "name")
-  private String name;
+  @Column(name = "role")
+  private String role;
 
-  /** 이름 검색용 해시. */
-  @Column(name = "name_hash")
-  private String nameHash;
-
-  private Member(String discordId, String discordUsername) {
+  private Member(String discordId, String nickname, String email) {
+    this.uuid = UUID.randomUUID().toString();
     this.discordId = discordId;
-    this.discordUsername = discordUsername;
+    this.nickname = nickname;
+    this.role = "USER";
+    if (email != null) {
+      updateEmail(email);
+    }
   }
 
   /**
    * Discord OAuth 로그인 시 Member 생성.
    *
    * @param discordId Discord 사용자 ID
-   * @param discordUsername Discord 사용자명
-   * @return 새로운 Member 인스턴스
+   * @param nickname Discord 사용자명
+   * @param email Discord 이메일 (nullable)
+   * @return 새로운 Member 인스턴스 (uuid 자동 생성)
    */
-  public static Member create(String discordId, String discordUsername) {
-    return new Member(discordId, discordUsername);
+  public static Member create(String discordId, String nickname, String email) {
+    return new Member(discordId, nickname, email);
   }
 
   /**
    * Discord 사용자명 업데이트.
    *
-   * @param discordUsername 새로운 Discord 사용자명
+   * @param nickname 새로운 Discord 사용자명
    */
-  public void updateDiscordUsername(String discordUsername) {
-    this.discordUsername = discordUsername;
+  public void updateNickname(String nickname) {
+    this.nickname = nickname;
   }
 
   /**
@@ -77,23 +82,13 @@ public class Member extends BaseEntity {
   }
 
   /**
-   * 이름 업데이트. 암호화 필드와 해시 필드가 함께 설정됩니다.
-   *
-   * @param name 새로운 이름 (평문)
-   */
-  public void updateName(String name) {
-    this.name = name;
-    this.nameHash = StringHashConverter.hash(name);
-  }
-
-  /**
    * 프로필 전체 업데이트.
    *
    * @param email 이메일 (평문)
-   * @param name 이름 (평문)
+   * @param nickname 닉네임
    */
-  public void updateProfile(String email, String name) {
+  public void updateProfile(String email, String nickname) {
     updateEmail(email);
-    updateName(name);
+    updateNickname(nickname);
   }
 }

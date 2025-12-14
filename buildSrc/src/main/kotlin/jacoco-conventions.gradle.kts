@@ -9,14 +9,12 @@ jacoco {
 
 // 커버리지 측정에서 제외할 패턴
 val jacocoExcludes = listOf(
-    "**/entity/**",
-    "**/dto/**",
+    "**/domain/**",
     "**/exception/**",
     "**/response/**",
     "**/config/**",
-    "**/event/**",
     "**/infrastructure/**",
-    "**/presentation/**",
+    "**/example/**",
     "**/*Application*"
 )
 
@@ -43,6 +41,8 @@ tasks.jacocoTestReport {
 }
 
 tasks.jacocoTestCoverageVerification {
+    dependsOn(tasks.test, tasks.classes)
+
     classDirectories.setFrom(
         files(classDirectories.files.map {
             fileTree(it) {
@@ -52,7 +52,15 @@ tasks.jacocoTestCoverageVerification {
     )
 
     violationRules {
+        // 전체 커버리지 70% 이상
         rule {
+            limit {
+                minimum = "0.70".toBigDecimal()
+            }
+        }
+        // 개별 클래스 커버리지 60% 이상
+        rule {
+            element = "CLASS"
             limit {
                 minimum = "0.60".toBigDecimal()
             }

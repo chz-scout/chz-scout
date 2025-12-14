@@ -33,6 +33,24 @@ chzzk:
 discord:
   bot:
     token: test-bot-token
+  oauth:
+    client-id: test-client-id
+    client-secret: test-client-secret
+    redirect-uri: http://localhost:8080/api/auth/callback
+    url: http://localhost:8080/mock/oauth2/authorize?client_id=test-client-id&redirect_uri=http://localhost:8080/api/auth/callback&response_type=code&scope=identify
+  api:
+    base-url: http://localhost:8080/mock
+    authorize-url: http://localhost:8080/mock/oauth2/authorize
+    token-url: http://localhost:8080/mock/oauth2/token
+    user-info-url: http://localhost:8080/mock/users/@me
+
+# JWT Configuration (test-only)
+# SECURITY: This is a test-only secret with NO production value.
+# Allowlisted in .gitleaks.toml - DO NOT use in production.
+jwt:
+  secret: test-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256
+  access-token-expiration: 3600000
+  refresh-token-expiration: 604800000
 
 openai:
   api:
@@ -44,6 +62,7 @@ logging:
     com.vatti.chzscout: DEBUG
     org.hibernate.SQL: DEBUG
 
-# Encryption (test-only key - safe to hardcode for tests)
+# Encryption (test-only)
+# SECURITY: Allowlisted in .gitleaks.toml - DO NOT use in production.
 encryption:
   key: test-only-encryption-key-32chars!

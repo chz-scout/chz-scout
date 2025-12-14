@@ -1,0 +1,22 @@
+# Gitleaks Configuration
+# https://github.com/gitleaks/gitleaks
+
+title = "chz-scout gitleaks config"
+
+# Allowlist for test-only secrets (no real security value)
+[allowlist]
+  description = "Allow test configuration secrets"
+
+  # Allow entire test resources directory
+  paths = [
+    '''src/test/resources/application\.yml''',
+    '''src/test/resources/application-.*\.yml''',
+  ]
+
+  # Alternative: Allow specific test secret patterns
+  regexes = [
+    '''test-jwt-secret-key.*''',
+    '''test-.*-secret''',
+    '''test-api-key''',
+    '''test-only-encryption-key.*''',
+  ]
