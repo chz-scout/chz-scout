@@ -38,13 +38,6 @@ logging:
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
 
-# External API Keys (use environment variables or .env file)
-chzzk:
-  api:
-    base-url: https://api.chzzk.naver.com
-    client-id: ${CHZZK_CLIENT_ID:your-client-id}
-    client-secret: ${CHZZK_CLIENT_SECRET:your-client-secret}
-
 discord:
   bot:
     token: ${DISCORD_BOT_TOKEN:your-bot-token}

@@ -56,3 +56,10 @@ discord:
     base-url: https://discord.com/api/v10
     token-url: https://discord.com/api/oauth2/token
     user-info-url: https://discord.com/api/users/@me
+
+# Chzzk API Settings
+chzzk:
+  api:
+    base-url: https://openapi.chzzk.naver.com
+    client-id: ${CHZZK_CLIENT_ID}
+    client-secret: ${CHZZK_CLIENT_SECRET}

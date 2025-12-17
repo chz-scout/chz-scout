@@ -43,13 +43,6 @@ logging:
     com.vatti.chzscout: INFO
     org.hibernate.SQL: WARN
 
-# External API Keys (environment variables required)
-chzzk:
-  api:
-    base-url: https://api.chzzk.naver.com
-    client-id: ${CHZZK_CLIENT_ID}
-    client-secret: ${CHZZK_CLIENT_SECRET}
-
 discord:
   bot:
     token: ${DISCORD_BOT_TOKEN}
