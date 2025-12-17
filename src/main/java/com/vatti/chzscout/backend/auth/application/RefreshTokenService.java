@@ -1,19 +1,18 @@
 package com.vatti.chzscout.backend.auth.application;
 
+import com.vatti.chzscout.backend.auth.domain.repository.RefreshTokenRepository;
 import java.time.Duration;
 import lombok.RequiredArgsConstructor;
 import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-/** Refresh Token의 Redis 저장/조회/삭제를 담당. */
+/** Refresh Token의 저장/조회/삭제를 담당. */
 @Service
 @RequiredArgsConstructor
 public class RefreshTokenService {
-  private static final String KEY_PREFIX = "auth:refresh:";
 
-  private final StringRedisTemplate stringRedisTemplate;
+  private final RefreshTokenRepository refreshTokenRepository;
   private final JwtTokenProvider jwtTokenProvider;
 
   @Value("${jwt.refresh-token-expiration}")
@@ -22,19 +21,17 @@ public class RefreshTokenService {
   /** jti를 key로 Refresh Token 저장 (TTL 설정). */
   public void save(String refreshToken) {
     String jti = jwtTokenProvider.getJti(refreshToken);
-    stringRedisTemplate
-        .opsForValue()
-        .set(generateKey(jti), refreshToken, Duration.ofMillis(refreshTokenExpiration));
+    refreshTokenRepository.save(jti, refreshToken, Duration.ofMillis(refreshTokenExpiration));
   }
 
   /** jti로 Refresh Token 조회. */
   String findByJti(String jti) {
-    return stringRedisTemplate.opsForValue().get(generateKey(jti));
+    return refreshTokenRepository.findByJti(jti);
   }
 
   /** jti로 Refresh Token 삭제 (로그아웃). */
   public void deleteByJti(String jti) {
-    stringRedisTemplate.delete(generateKey(jti));
+    refreshTokenRepository.deleteByJti(jti);
   }
 
   /**
@@ -55,10 +52,5 @@ public class RefreshTokenService {
     String uuid = jwtTokenProvider.getUuid(refreshToken);
 
     return jwtTokenProvider.generateAccessToken(uuid, "USER");
-  }
-
-  /** Redis key 생성. */
-  private String generateKey(String jti) {
-    return KEY_PREFIX + jti;
   }
 }
