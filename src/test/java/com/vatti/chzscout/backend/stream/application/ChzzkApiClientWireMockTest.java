@@ -73,7 +73,7 @@ class ChzzkApiClientWireMockTest {
 
       stubFor(
           get(urlPathEqualTo("/open/v1/lives"))
-              .withHeader("Client-ID", equalTo(CLIENT_ID))
+              .withHeader("Client-Id", equalTo(CLIENT_ID))
               .withHeader("Client-Secret", equalTo(CLIENT_SECRET))
               .willReturn(
                   aResponse()

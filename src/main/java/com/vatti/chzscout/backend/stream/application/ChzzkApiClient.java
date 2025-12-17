@@ -44,24 +44,6 @@ public class ChzzkApiClient {
             .header("Client-Secret", apiClientSecret)
             .accept(MediaType.APPLICATION_JSON);
 
-    // Raw 응답 확인용 (디버깅)
-    String rawResponse = requestSpec.retrieve().body(String.class);
-    log.info(
-        "Raw API Response (first 500 chars): {}",
-        rawResponse != null
-            ? rawResponse.substring(0, Math.min(500, rawResponse.length()))
-            : "null");
-
-    // 다시 요청 (디버깅용 코드 제거 후에는 한 번만 호출)
-    return restClient
-        .get()
-        .uri(
-            baseUri + (next != null && !next.isEmpty() ? "?next={next}" : ""),
-            next != null ? next : "")
-        .header("Client-Id", apiClientId)
-        .header("Client-Secret", apiClientSecret)
-        .accept(MediaType.APPLICATION_JSON)
-        .retrieve()
-        .body(ChzzkLiveResponse.class);
+    return requestSpec.retrieve().body(ChzzkLiveResponse.class);
   }
 }
