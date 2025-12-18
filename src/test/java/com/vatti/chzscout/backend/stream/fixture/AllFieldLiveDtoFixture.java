@@ -31,6 +31,24 @@ public class AllFieldLiveDtoFixture {
         "https://profile.example.com/channel" + index + ".jpg");
   }
 
+  /** 인덱스 기반 라이브 데이터 생성. */
+  public static AllFieldLiveDto create(int index, List<String> tags) {
+    return new AllFieldLiveDto(
+        index,
+        "테스트 방송 제목 " + index,
+        "https://thumbnail.example.com/live" + index + ".jpg",
+        1000 + index * 100,
+        "2025-01-01T12:00:00",
+        false,
+        tags,
+        "GAME",
+        "League of Legends",
+        "리그 오브 레전드",
+        "channel_" + index,
+        "스트리머" + index,
+        "https://profile.example.com/channel" + index + ".jpg");
+  }
+
   /** 성인 방송 데이터 생성. */
   public static AllFieldLiveDto adult(int index) {
     return new AllFieldLiveDto(
