@@ -21,7 +21,7 @@ public class StreamCacheService {
   private final StreamRedisStore streamRedisStore;
 
   /** 치지직 API에서 생방송 목록을 가져와 Redis에 캐싱 (최대 10페이지). */
-  public void refreshLiveStreams() {
+  public List<AllFieldLiveDto> refreshLiveStreams() {
     List<AllFieldLiveDto> allStreams = new ArrayList<>();
     String nextCursor = null;
 
@@ -53,6 +53,7 @@ public class StreamCacheService {
     } else {
       log.warn("No streams to cache");
     }
+    return allStreams;
   }
 
   /** 캐싱된 생방송 목록 조회. 캐시 미스 시 API 호출. */
