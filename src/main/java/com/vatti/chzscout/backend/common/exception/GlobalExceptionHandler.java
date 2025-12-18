@@ -1,7 +1,6 @@
 package com.vatti.chzscout.backend.common.exception;
 
 import com.vatti.chzscout.backend.common.response.ApiResponse;
-import com.vatti.chzscout.backend.common.response.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -21,7 +20,7 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
     log.error("Exception: ", e);
-    return ResponseEntity.status(ErrorCode.INTERNAL_SERVER_ERROR.getHttpStatus())
-        .body(ApiResponse.error(ErrorCode.INTERNAL_SERVER_ERROR));
+    return ResponseEntity.status(CommonErrorCode.INTERNAL_SERVER_ERROR.getHttpStatus())
+        .body(ApiResponse.error(CommonErrorCode.INTERNAL_SERVER_ERROR));
   }
 }

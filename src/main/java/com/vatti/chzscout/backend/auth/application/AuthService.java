@@ -1,7 +1,7 @@
 package com.vatti.chzscout.backend.auth.application;
 
+import com.vatti.chzscout.backend.auth.exception.AuthErrorCode;
 import com.vatti.chzscout.backend.common.exception.BusinessException;
-import com.vatti.chzscout.backend.common.response.ErrorCode;
 import com.vatti.chzscout.backend.member.domain.entity.Member;
 import com.vatti.chzscout.backend.member.infrastructure.MemberRepository;
 import lombok.RequiredArgsConstructor;
@@ -58,7 +58,7 @@ public class AuthService {
   public void logout(String refreshToken) {
     if (!jwtTokenProvider.validateToken(refreshToken)) {
       log.warn("로그아웃 실패: 유효하지 않은 토큰");
-      throw new BusinessException(ErrorCode.INVALID_TOKEN);
+      throw new BusinessException(AuthErrorCode.INVALID_TOKEN);
     }
 
     String jti = jwtTokenProvider.getJti(refreshToken);

@@ -1,6 +1,7 @@
 package com.vatti.chzscout.backend.common.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.vatti.chzscout.backend.common.exception.ErrorCode;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

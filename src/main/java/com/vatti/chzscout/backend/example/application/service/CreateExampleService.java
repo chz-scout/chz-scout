@@ -1,11 +1,11 @@
 package com.vatti.chzscout.backend.example.application.service;
 
 import com.vatti.chzscout.backend.common.exception.BusinessException;
-import com.vatti.chzscout.backend.common.response.ErrorCode;
 import com.vatti.chzscout.backend.example.application.usecase.CreateExampleUseCase;
 import com.vatti.chzscout.backend.example.domain.dto.CreateExampleRequest;
 import com.vatti.chzscout.backend.example.domain.dto.ExampleResponse;
 import com.vatti.chzscout.backend.example.domain.entity.Example;
+import com.vatti.chzscout.backend.example.exception.ExampleErrorCode;
 import com.vatti.chzscout.backend.example.infrastructure.ExampleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,7 +22,7 @@ public class CreateExampleService implements CreateExampleUseCase {
   @Transactional
   public ExampleResponse execute(CreateExampleRequest request) {
     if (exampleRepository.existsByEmail(request.email())) {
-      throw new BusinessException(ErrorCode.EXAMPLE_ALREADY_EXISTS);
+      throw new BusinessException(ExampleErrorCode.EXAMPLE_ALREADY_EXISTS);
     }
 
     Example example = Example.create(request.name(), request.email());

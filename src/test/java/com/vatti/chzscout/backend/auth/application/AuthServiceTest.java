@@ -7,8 +7,8 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
+import com.vatti.chzscout.backend.auth.exception.AuthErrorCode;
 import com.vatti.chzscout.backend.common.exception.BusinessException;
-import com.vatti.chzscout.backend.common.response.ErrorCode;
 import com.vatti.chzscout.backend.member.domain.entity.Member;
 import com.vatti.chzscout.backend.member.infrastructure.MemberRepository;
 import java.util.Optional;
@@ -149,7 +149,7 @@ class AuthServiceTest {
           .satisfies(
               e ->
                   assertThat(((BusinessException) e).getErrorCode())
-                      .isEqualTo(ErrorCode.INVALID_TOKEN));
+                      .isEqualTo(AuthErrorCode.INVALID_TOKEN));
 
       then(refreshTokenService).should(never()).deleteByJti(any());
     }

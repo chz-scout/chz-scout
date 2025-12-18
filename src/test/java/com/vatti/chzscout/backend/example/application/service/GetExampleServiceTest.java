@@ -5,9 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
 import com.vatti.chzscout.backend.common.exception.BusinessException;
-import com.vatti.chzscout.backend.common.response.ErrorCode;
 import com.vatti.chzscout.backend.example.domain.dto.ExampleResponse;
 import com.vatti.chzscout.backend.example.domain.entity.Example;
+import com.vatti.chzscout.backend.example.exception.ExampleErrorCode;
 import com.vatti.chzscout.backend.example.infrastructure.ExampleRepository;
 import java.util.List;
 import java.util.Optional;
@@ -56,7 +56,7 @@ class GetExampleServiceTest {
         .satisfies(
             e ->
                 assertThat(((BusinessException) e).getErrorCode())
-                    .isEqualTo(ErrorCode.EXAMPLE_NOT_FOUND));
+                    .isEqualTo(ExampleErrorCode.EXAMPLE_NOT_FOUND));
   }
 
   @Test

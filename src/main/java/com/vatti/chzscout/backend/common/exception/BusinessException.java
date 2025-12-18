@@ -1,6 +1,5 @@
 package com.vatti.chzscout.backend.common.exception;
 
-import com.vatti.chzscout.backend.common.response.ErrorCode;
 import lombok.Getter;
 
 @Getter
