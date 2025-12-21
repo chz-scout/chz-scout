@@ -1,4 +1,4 @@
-package com.vatti.chzscout.backend.tag.application;
+package com.vatti.chzscout.backend.tag.application.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -8,9 +8,12 @@ import static org.mockito.Mockito.*;
 
 import com.vatti.chzscout.backend.stream.domain.AllFieldLiveDto;
 import com.vatti.chzscout.backend.stream.fixture.AllFieldLiveDtoFixture;
+import com.vatti.chzscout.backend.tag.domain.dto.TagAutocompleteResponse;
 import com.vatti.chzscout.backend.tag.domain.entity.Tag;
 import com.vatti.chzscout.backend.tag.domain.entity.TagType;
+import com.vatti.chzscout.backend.tag.fixture.TagFixture;
 import com.vatti.chzscout.backend.tag.infrastructure.TagRepository;
+import com.vatti.chzscout.backend.tag.infrastructure.redis.TagAutocompleteRedisStore;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -25,6 +28,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class TagServiceTest {
   @Mock TagRepository tagRepository;
+  @Mock TagAutocompleteRedisStore tagAutocompleteRedisStore;
 
   @InjectMocks TagService tagService;
 
@@ -205,6 +209,208 @@ class TagServiceTest {
                     if (tagList.isEmpty()) return true; // CATEGORY용 빈 리스트 호출 허용
                     return tagList.stream().allMatch(tag -> tag.getTagType() == TagType.CUSTOM);
                   }));
+    }
+  }
+
+  @Nested
+  @DisplayName("refreshAutoCompletedCache 메서드")
+  class refreshAutocompleteCache {
+    @Test
+    @DisplayName("DB에서 조회한 태그를 Redis에 저장한다")
+    void refreshAutocompleteCacheSuccess() {
+      // given
+      List<Tag> customTags =
+          List.of(
+              TagFixture.createCustom("롤"),
+              TagFixture.createCustom("메이플"),
+              TagFixture.createCustom("배그"));
+      List<Tag> categoryTags =
+          List.of(
+              TagFixture.createCategory("리그 오브 레전드"),
+              TagFixture.createCategory("메이플 스토리"),
+              TagFixture.createCategory("Talk"));
+
+      given(tagRepository.findAllCustomTags()).willReturn(customTags);
+      given(tagRepository.findAllCategoryTags()).willReturn(categoryTags);
+
+      // when
+      tagService.refreshAutocompleteCache();
+
+      // then
+      verify(tagRepository).findAllCategoryTags();
+      verify(tagRepository).findAllCustomTags();
+      verify(tagAutocompleteRedisStore).saveAll(categoryTags, TagType.CATEGORY);
+      verify(tagAutocompleteRedisStore).saveAll(customTags, TagType.CUSTOM);
+    }
+
+    @Test
+    @DisplayName("CUSTOM 태그가 빈 리스트여도 Redis 저장을 시도한다")
+    void refreshAutocompleteCacheWithEmptyCustomTags() {
+      // given
+      List<Tag> customTags = List.of();
+      List<Tag> categoryTags = List.of(TagFixture.createCategory("리그 오브 레전드"));
+
+      given(tagRepository.findAllCustomTags()).willReturn(customTags);
+      given(tagRepository.findAllCategoryTags()).willReturn(categoryTags);
+
+      // when
+      tagService.refreshAutocompleteCache();
+
+      // then
+      verify(tagAutocompleteRedisStore).saveAll(customTags, TagType.CUSTOM);
+      verify(tagAutocompleteRedisStore).saveAll(categoryTags, TagType.CATEGORY);
+    }
+
+    @Test
+    @DisplayName("CATEGORY 태그가 빈 리스트여도 Redis 저장을 시도한다")
+    void refreshAutocompleteCacheWithEmptyCategoryTags() {
+      // given
+      List<Tag> customTags = List.of(TagFixture.createCustom("롤"));
+      List<Tag> categoryTags = List.of();
+
+      given(tagRepository.findAllCustomTags()).willReturn(customTags);
+      given(tagRepository.findAllCategoryTags()).willReturn(categoryTags);
+
+      // when
+      tagService.refreshAutocompleteCache();
+
+      // then
+      verify(tagAutocompleteRedisStore).saveAll(customTags, TagType.CUSTOM);
+      verify(tagAutocompleteRedisStore).saveAll(categoryTags, TagType.CATEGORY);
+    }
+
+    @Test
+    @DisplayName("모든 태그가 빈 리스트여도 Redis 저장을 시도한다")
+    void refreshAutocompleteCacheWithAllEmptyTags() {
+      // given
+      List<Tag> customTags = List.of();
+      List<Tag> categoryTags = List.of();
+
+      given(tagRepository.findAllCustomTags()).willReturn(customTags);
+      given(tagRepository.findAllCategoryTags()).willReturn(categoryTags);
+
+      // when
+      tagService.refreshAutocompleteCache();
+
+      // then
+      verify(tagAutocompleteRedisStore).saveAll(customTags, TagType.CUSTOM);
+      verify(tagAutocompleteRedisStore).saveAll(categoryTags, TagType.CATEGORY);
+    }
+  }
+
+  @Nested
+  @DisplayName("searchAutocomplete 메서드")
+  class searchAutocompleteCache {
+    String prefix = "롤";
+    int limit = 10;
+
+    // CUSTOM 태그 - Redis에서 반환되는 형식: "tagName:usageCount"
+    List<String> customRedisMembers =
+        List.of(
+            "롤:100",
+            "롤토체스:10",
+            "롤드컵:60",
+            "롤 같이 할 사람:3",
+            "롤리나잇:3",
+            "롤 방송:32",
+            "롤 페이커:200",
+            "롤 미드:20",
+            "롤 승급전:10",
+            "롤 칼바람:60");
+
+    // CATEGORY 태그 - "리"로 시작하는 카테고리만
+    List<String> categoryRedisMembers = List.of("리그 오브 레전드:500", "리니지:100", "리듬게임:50");
+
+    @Test
+    @DisplayName("태그를 검색하면 usageCount 내림차순으로 리턴한다")
+    void searchAutocompleteCacheSuccess() {
+      // given
+      given(tagAutocompleteRedisStore.findByPrefix(prefix, TagType.CUSTOM, limit))
+          .willReturn(customRedisMembers);
+
+      for (String member : customRedisMembers) {
+        String tagName = member.substring(0, member.lastIndexOf(":"));
+        Long usageCount = Long.parseLong(member.substring(member.lastIndexOf(":") + 1));
+        given(tagAutocompleteRedisStore.extractTagName(member)).willReturn(tagName);
+        given(tagAutocompleteRedisStore.extractUsageCount(member)).willReturn(usageCount);
+      }
+
+      // when
+      List<TagAutocompleteResponse> tagAutocompleteResponses =
+          tagService.searchAutocomplete(prefix, TagType.CUSTOM, limit);
+
+      // then
+      assertThat(tagAutocompleteResponses).hasSize(10);
+      assertThat(tagAutocompleteResponses.get(0).name()).isEqualTo("롤 페이커");
+      assertThat(tagAutocompleteResponses.get(0).usageCount()).isEqualTo(200L);
+      assertThat(tagAutocompleteResponses.get(1).name()).isEqualTo("롤");
+      assertThat(tagAutocompleteResponses.get(1).usageCount()).isEqualTo(100L);
+
+      // CATEGORY 태그 검색
+      String categoryPrefix = "리";
+      given(tagAutocompleteRedisStore.findByPrefix(categoryPrefix, TagType.CATEGORY, limit))
+          .willReturn(categoryRedisMembers);
+
+      for (String member : categoryRedisMembers) {
+        String tagName = member.substring(0, member.lastIndexOf(":"));
+        Long usageCount = Long.parseLong(member.substring(member.lastIndexOf(":") + 1));
+        given(tagAutocompleteRedisStore.extractTagName(member)).willReturn(tagName);
+        given(tagAutocompleteRedisStore.extractUsageCount(member)).willReturn(usageCount);
+      }
+
+      // when
+      List<TagAutocompleteResponse> categoryResponses =
+          tagService.searchAutocomplete(categoryPrefix, TagType.CATEGORY, limit);
+
+      // then
+      assertThat(categoryResponses).hasSize(3);
+      assertThat(categoryResponses.get(0).name()).isEqualTo("리그 오브 레전드");
+      assertThat(categoryResponses.get(0).usageCount()).isEqualTo(500L);
+    }
+
+    @Test
+    @DisplayName("결과가 limit보다 적으면 있는 만큼만 리턴한다")
+    void searchAutocompleteCacheWithFewerResults() {
+      // given
+      List<String> fewMembers = List.of("롤:100", "롤드컵:60", "롤토체스:10");
+
+      given(tagAutocompleteRedisStore.findByPrefix(prefix, TagType.CUSTOM, limit))
+          .willReturn(fewMembers);
+
+      for (String member : fewMembers) {
+        String tagName = member.substring(0, member.lastIndexOf(":"));
+        Long usageCount = Long.parseLong(member.substring(member.lastIndexOf(":") + 1));
+        given(tagAutocompleteRedisStore.extractTagName(member)).willReturn(tagName);
+        given(tagAutocompleteRedisStore.extractUsageCount(member)).willReturn(usageCount);
+      }
+
+      // when
+      List<TagAutocompleteResponse> tagAutocompleteResponses =
+          tagService.searchAutocomplete(prefix, TagType.CUSTOM, limit);
+
+      // then
+      assertThat(tagAutocompleteResponses).hasSize(3);
+      // usageCount 내림차순 정렬 검증
+      assertThat(tagAutocompleteResponses.get(0).name()).isEqualTo("롤");
+      assertThat(tagAutocompleteResponses.get(0).usageCount()).isEqualTo(100L);
+      assertThat(tagAutocompleteResponses.get(1).name()).isEqualTo("롤드컵");
+      assertThat(tagAutocompleteResponses.get(2).name()).isEqualTo("롤토체스");
+    }
+
+    @Test
+    @DisplayName("매칭되는 태그가 없으면 빈 리스트를 리턴한다")
+    void searchAutocompleteCacheWithNoResults() {
+      // given
+      String unknownPrefix = "존재하지않는태그";
+      given(tagAutocompleteRedisStore.findByPrefix(unknownPrefix, TagType.CUSTOM, limit))
+          .willReturn(List.of());
+
+      // when
+      List<TagAutocompleteResponse> tagAutocompleteResponses =
+          tagService.searchAutocomplete(unknownPrefix, TagType.CUSTOM, limit);
+
+      // then
+      assertThat(tagAutocompleteResponses).isEmpty();
     }
   }
 }

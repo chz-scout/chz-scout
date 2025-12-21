@@ -230,6 +230,78 @@ class TagRepositoryTest {
   }
 
   @Nested
+  @DisplayName("findAllCustomTags 메서드 테스트")
+  class FindAllCustomTags {
+
+    @Test
+    @DisplayName("활성 CUSTOM 태그만 조회한다")
+    void findsOnlyActiveCustomTags() {
+      // when
+      List<Tag> result = tagRepository.findAllCustomTags();
+
+      // then - 활성 CUSTOM 5개만 조회
+      assertThat(result).hasSize(5);
+      assertThat(result).allMatch(tag -> tag.getName().startsWith("custom_active_"));
+    }
+
+    @Test
+    @DisplayName("CATEGORY 태그는 조회하지 않는다")
+    void excludesCategoryTags() {
+      // when
+      List<Tag> result = tagRepository.findAllCustomTags();
+
+      // then - CATEGORY 태그 없음
+      assertThat(result).noneMatch(tag -> tag.getName().startsWith("category_"));
+    }
+
+    @Test
+    @DisplayName("삭제된 CUSTOM 태그는 조회하지 않는다")
+    void excludesDeletedCustomTags() {
+      // when
+      List<Tag> result = tagRepository.findAllCustomTags();
+
+      // then - 삭제된 태그 없음
+      assertThat(result).noneMatch(tag -> tag.getName().contains("deleted"));
+    }
+  }
+
+  @Nested
+  @DisplayName("findAllCategoryTags 메서드 테스트")
+  class FindAllCategoryTags {
+
+    @Test
+    @DisplayName("활성 CATEGORY 태그만 조회한다")
+    void findsOnlyActiveCategoryTags() {
+      // when
+      List<Tag> result = tagRepository.findAllCategoryTags();
+
+      // then - 활성 CATEGORY 5개만 조회
+      assertThat(result).hasSize(5);
+      assertThat(result).allMatch(tag -> tag.getName().startsWith("category_active_"));
+    }
+
+    @Test
+    @DisplayName("CUSTOM 태그는 조회하지 않는다")
+    void excludesCustomTags() {
+      // when
+      List<Tag> result = tagRepository.findAllCategoryTags();
+
+      // then - CUSTOM 태그 없음
+      assertThat(result).noneMatch(tag -> tag.getName().startsWith("custom_"));
+    }
+
+    @Test
+    @DisplayName("삭제된 CATEGORY 태그는 조회하지 않는다")
+    void excludesDeletedCategoryTags() {
+      // when
+      List<Tag> result = tagRepository.findAllCategoryTags();
+
+      // then - 삭제된 태그 없음
+      assertThat(result).noneMatch(tag -> tag.getName().contains("deleted"));
+    }
+  }
+
+  @Nested
   @DisplayName("findByNameIn 메서드 테스트")
   class FindByNameIn {
 

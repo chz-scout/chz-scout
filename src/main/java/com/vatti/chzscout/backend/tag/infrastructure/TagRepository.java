@@ -60,4 +60,12 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
           "UPDATE tag SET deleted = false WHERE name IN :names AND tag_type = 'CATEGORY' AND deleted = true",
       nativeQuery = true)
   int restoreCategoryByNames(@Param("names") Set<String> names);
+
+  /** 활성 CUSTOM 태그 전체 조회 */
+  @Query("SELECT t FROM Tag t WHERE t.tagType = 'CUSTOM'")
+  List<Tag> findAllCustomTags();
+
+  /** 활성 CATEGORY 태그 전체 조회 */
+  @Query("SELECT t FROM Tag t WHERE t.tagType = 'CATEGORY'")
+  List<Tag> findAllCategoryTags();
 }

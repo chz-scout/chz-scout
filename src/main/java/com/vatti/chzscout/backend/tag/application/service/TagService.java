@@ -1,12 +1,15 @@
-package com.vatti.chzscout.backend.tag.application;
+package com.vatti.chzscout.backend.tag.application.service;
 
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 
 import com.vatti.chzscout.backend.stream.domain.AllFieldLiveDto;
+import com.vatti.chzscout.backend.tag.application.usecase.TagUseCase;
+import com.vatti.chzscout.backend.tag.domain.dto.TagAutocompleteResponse;
 import com.vatti.chzscout.backend.tag.domain.entity.Tag;
 import com.vatti.chzscout.backend.tag.domain.entity.TagType;
 import com.vatti.chzscout.backend.tag.infrastructure.TagRepository;
+import com.vatti.chzscout.backend.tag.infrastructure.redis.TagAutocompleteRedisStore;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -21,16 +24,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @RequiredArgsConstructor
 @Transactional
-public class TagService {
-  private final TagRepository tagRepository;
+public class TagService implements TagUseCase {
 
-  /**
-   * 스트림 목록에서 태그를 추출하여 저장합니다.
-   *
-   * <p>삭제된 태그는 복구하고, 기존 태그는 사용 횟수를 증가시키고, 새로운 태그는 새로 생성합니다.
-   *
-   * @param streams 태그를 추출할 스트림 목록
-   */
+  private final TagRepository tagRepository;
+  private final TagAutocompleteRedisStore tagAutocompleteRedisStore;
+
+  @Override
   public void extractAndSaveTag(List<AllFieldLiveDto> streams) {
     // 1. 스트림 목록에서 태그 및 카테고리 별 등장 횟수 집계
     Map<String, Long> tagCountMap =
@@ -82,13 +81,38 @@ public class TagService {
     processTagsAndSave(categoryCountMap, allCategories, TagType.CATEGORY);
   }
 
+  @Override
+  public List<TagAutocompleteResponse> searchAutocomplete(
+      String prefix, TagType tagType, int limit) {
+    return tagAutocompleteRedisStore.findByPrefix(prefix, tagType, limit).stream()
+        .map(
+            member ->
+                TagAutocompleteResponse.of(
+                    tagAutocompleteRedisStore.extractTagName(member),
+                    tagAutocompleteRedisStore.extractUsageCount(member)))
+        .sorted((a, b) -> Long.compare(b.usageCount(), a.usageCount()))
+        .toList();
+  }
+
   /**
-   * 태그 복구 및 생성 로직
+   * DB에 저장된 태그를 Redis 자동완성 캐시에 전체 갱신합니다.
    *
-   * @param tagCountMap 태그 이름 → 등장 횟수
-   * @param allTags DB에 존재하는 태그 (삭제된 것 포함)
-   * @param tagType 처리할 태그 타입
+   * <p>기존 Redis 데이터를 삭제하고 DB의 최신 태그로 교체합니다.
    */
+  @Override
+  public void refreshAutocompleteCache() {
+    List<Tag> categoryList = tagRepository.findAllCategoryTags();
+    List<Tag> tagList = tagRepository.findAllCustomTags();
+
+    tagAutocompleteRedisStore.saveAll(categoryList, TagType.CATEGORY);
+    tagAutocompleteRedisStore.saveAll(tagList, TagType.CUSTOM);
+
+    log.info(
+        "Refreshed autocomplete cache - categories: {}, tags: {}",
+        categoryList.size(),
+        tagList.size());
+  }
+
   private void processTagsAndSave(
       Map<String, Long> tagCountMap, Map<String, Tag> allTags, TagType tagType) {
     if (tagCountMap.isEmpty()) {
