@@ -15,6 +15,8 @@ val jacocoExcludes = listOf(
     "**/config/**",
     "**/example/**",
     "**/usecase/**",
+    "**/listener/**",
+    "**/event/**",
     "**/*Application*"
 )
 
