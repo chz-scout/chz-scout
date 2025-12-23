@@ -3,6 +3,7 @@ package com.vatti.chzscout.backend.discord.presentation.listener;
 import com.vatti.chzscout.backend.ai.domain.event.AiMessageResponseReceivedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.dv8tion.jda.api.entities.channel.unions.MessageChannelUnion;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import org.springframework.context.ApplicationEventPublisher;
@@ -14,6 +15,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class MessageListener extends ListenerAdapter {
 
+  private static final int MIN_LENGTH = 2;
+  private static final int MAX_LENGTH = 500;
+
   private final ApplicationEventPublisher eventPublisher;
 
   @Override
@@ -23,13 +27,17 @@ public class MessageListener extends ListenerAdapter {
       return;
     }
 
-    String content = event.getMessage().getContentRaw();
+    String content = event.getMessage().getContentRaw().trim();
     String authorName = event.getAuthor().getName();
+    MessageChannelUnion channel = event.getChannel();
 
     log.info("메시지 수신: {} - {}", authorName, content);
 
+    // TODO(human): 메시지 검증 로직 구현
+    // 검증 실패 시 channel.sendMessage("안내 메시지").queue() 호출
+
     AiMessageResponseReceivedEvent responseEvent =
-        new AiMessageResponseReceivedEvent(event.getChannel().getIdLong(), "테스트 임시 응답입니다.");
+        new AiMessageResponseReceivedEvent(channel.getIdLong(), "테스트 임시 응답입니다.");
     eventPublisher.publishEvent(responseEvent);
   }
 }
