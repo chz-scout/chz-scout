@@ -44,8 +44,10 @@ jwt:
   access-token-expiration: 3600000      # 1시간 (ms)
   refresh-token-expiration: 604800000   # 7일 (ms)
 
-# Discord OAuth Common Settings
+# Discord OAuth & Bot Common Settings
 discord:
+  bot:
+    token: ${DISCORD_BOT_TOKEN}
   oauth:
     client-id: ${DISCORD_CLIENT_ID}
     client-secret: ${DISCORD_CLIENT_SECRET}
