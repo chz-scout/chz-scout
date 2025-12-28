@@ -67,9 +67,14 @@ public class StreamRedisStore {
    */
   public StreamChangeResult detectChanges(List<AllFieldLiveDto> currentStreams) {
     // 현재 방송들의 해시 계산 (originalTags 기준)
+    // 중복 channelId가 있을 경우 마지막 값을 사용 (업스트림 API 중복 응답 대비)
     Map<String, String> currentHashes =
         currentStreams.stream()
-            .collect(Collectors.toMap(AllFieldLiveDto::channelId, this::computeOriginalTagsHash));
+            .collect(
+                Collectors.toMap(
+                    AllFieldLiveDto::channelId,
+                    this::computeOriginalTagsHash,
+                    (existing, replacement) -> replacement));
 
     // 이전 해시 조회
     Map<Object, Object> previousHashEntries = redisTemplate.opsForHash().entries(STREAM_HASHES_KEY);
