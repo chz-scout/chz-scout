@@ -269,9 +269,15 @@ public final class TagExtractionPrompts {
    *
    * @param streams 방송 정보 리스트 (id, title, category, existingTags)
    * @return 포맷팅된 유저 프롬프트 (JSON 형식)
+   * @throws IllegalStateException JSON 직렬화 실패 시
    */
   public static String formatStreamTagExtractionBatchUser(List<StreamInput> streams) {
-    String json = JSON_MAPPER.writeValueAsString(new StreamBatchRequest(streams));
+    String json;
+    try {
+      json = JSON_MAPPER.writeValueAsString(new StreamBatchRequest(streams));
+    } catch (Exception e) {
+      throw new IllegalStateException("방송 정보 JSON 직렬화 실패", e);
+    }
 
     return """
             다음 방송 정보들을 분석하여 각 방송별로 통합 태그를 추출해주세요.
