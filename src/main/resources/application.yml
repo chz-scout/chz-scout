@@ -64,3 +64,10 @@ chzzk:
     base-url: https://openapi.chzzk.naver.com
     client-id: ${CHZZK_CLIENT_ID}
     client-secret: ${CHZZK_CLIENT_SECRET}
+
+# OpenAI API Settings
+openai:
+  api:
+    key: ${OPENAI_API_KEY}
+    model: gpt-5-nano
+    base-url: https://api.openai.com/v1

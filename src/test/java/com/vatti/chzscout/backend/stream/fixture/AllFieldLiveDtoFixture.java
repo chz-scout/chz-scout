@@ -102,4 +102,22 @@ public class AllFieldLiveDtoFixture {
         "인기스트리머" + index,
         "https://profile.example.com/popular" + index + ".jpg");
   }
+
+  /** 커스텀 제목 라이브 데이터 생성. */
+  public static AllFieldLiveDto withTitle(int index, String title) {
+    return new AllFieldLiveDto(
+        index,
+        title,
+        "https://thumbnail.example.com/live" + index + ".jpg",
+        1000 + index * 100,
+        "2025-01-01T12:00:00",
+        false,
+        List.of("게임", "롤"),
+        "GAME",
+        "League of Legends",
+        "리그 오브 레전드",
+        "channel_" + index,
+        "스트리머" + index,
+        "https://profile.example.com/channel" + index + ".jpg");
+  }
 }

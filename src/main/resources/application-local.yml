@@ -47,6 +47,7 @@ discord:
 openai:
   api:
     key: ${OPENAI_API_KEY:your-api-key}
+    model: gpt-5-nano
 
 # Encryption (key from .env.local - DO NOT hardcode!)
 encryption:

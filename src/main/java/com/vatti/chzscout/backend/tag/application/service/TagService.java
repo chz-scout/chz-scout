@@ -44,17 +44,6 @@ public class TagService implements TagUseCase {
             .filter(category -> category != null && !category.isBlank())
             .collect(Collectors.groupingBy(identity(), Collectors.counting()));
 
-    // 디버깅: 첫 번째 스트림의 실제 데이터 확인
-    if (!streams.isEmpty()) {
-      AllFieldLiveDto sample = streams.get(0);
-      log.info(
-          "Sample stream - title: {}, tags: {}, liveCategory: {}, categoryType: {}",
-          sample.liveTitle(),
-          sample.tags(),
-          sample.liveCategory(),
-          sample.categoryType());
-    }
-
     log.info("Collected tags: {} (count: {})", tagCountMap.keySet(), tagCountMap.size());
     log.info(
         "Collected categories: {} (count: {})", categoryCountMap.keySet(), categoryCountMap.size());

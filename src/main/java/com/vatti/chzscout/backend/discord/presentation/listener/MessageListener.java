@@ -1,6 +1,12 @@
 package com.vatti.chzscout.backend.discord.presentation.listener;
 
+import com.vatti.chzscout.backend.ai.application.AiChatService;
+import com.vatti.chzscout.backend.ai.domain.dto.UserMessageAnalysisResult;
 import com.vatti.chzscout.backend.ai.domain.event.AiMessageResponseReceivedEvent;
+import com.vatti.chzscout.backend.stream.application.service.StreamRecommendationService;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.dv8tion.jda.api.entities.channel.unions.MessageChannelUnion;
@@ -19,6 +25,8 @@ public class MessageListener extends ListenerAdapter {
   private static final int MAX_LENGTH = 500;
 
   private final ApplicationEventPublisher eventPublisher;
+  private final AiChatService aiChatService;
+  private final StreamRecommendationService streamRecommendationService;
 
   @Override
   public void onMessageReceived(MessageReceivedEvent event) {
@@ -33,11 +41,64 @@ public class MessageListener extends ListenerAdapter {
 
     log.info("메시지 수신: {} - {}", authorName, content);
 
-    // TODO(human): 메시지 검증 로직 구현
-    // 검증 실패 시 channel.sendMessage("안내 메시지").queue() 호출
+    if (content.length() < MIN_LENGTH) {
+      channel.sendMessage("메시지가 너무 짧아요! 2자 이상 입력해주세요 ✍️").queue();
+      return;
+    }
 
+    if (content.length() > MAX_LENGTH) {
+      channel.sendMessage("메시지가 너무 길어요! 500자 이하로 입력해주세요 📝").queue();
+      return;
+    }
+
+    try {
+      UserMessageAnalysisResult analysisResult = aiChatService.analyzeUserMessage(content);
+      handleAnalysisResult(channel, analysisResult);
+    } catch (Exception e) {
+      log.error("메시지 처리 중 오류 발생: {}", e.getMessage(), e);
+      channel.sendMessage("죄송해요, 지금은 응답을 드리기 어려워요. 잠시 후 다시 시도해주세요! 🙏").queue();
+    }
+  }
+
+  private void handleAnalysisResult(MessageChannelUnion channel, UserMessageAnalysisResult result) {
+    if (result.isRecommendationRequest()) {
+      // 의미 태그와 키워드를 합쳐서 검색
+      List<String> allTags = combineTagsAndKeywords(result);
+      log.debug(
+          "추천 검색 태그 - semanticTags: {}, keywords: {}",
+          result.getSemanticTags(),
+          result.getKeywords());
+
+      String recommendation =
+          streamRecommendationService.recommend(allTags).stream()
+              .map(stream -> "https://chzzk.naver.com/live/" + stream.channelId())
+              .collect(Collectors.joining("\n"));
+
+      if (recommendation.isEmpty()) {
+        publishResponse(channel, "아쉽게도 지금은 조건에 맞는 방송이 없어요. 다른 키워드로 다시 시도해보세요! 🔍");
+      } else {
+        publishResponse(channel, recommendation);
+      }
+    } else if (result.hasDirectReply()) {
+      // search 또는 other: GPT가 생성한 reply를 그대로 전송
+      publishResponse(channel, result.getReply());
+    }
+  }
+
+  private List<String> combineTagsAndKeywords(UserMessageAnalysisResult result) {
+    List<String> combined = new ArrayList<>();
+    if (result.hasSemanticTags()) {
+      combined.addAll(result.getSemanticTags());
+    }
+    if (result.hasKeywords()) {
+      combined.addAll(result.getKeywords());
+    }
+    return combined;
+  }
+
+  private void publishResponse(MessageChannelUnion channel, String message) {
     AiMessageResponseReceivedEvent responseEvent =
-        new AiMessageResponseReceivedEvent(channel.getIdLong(), "테스트 임시 응답입니다.");
+        new AiMessageResponseReceivedEvent(channel.getIdLong(), message);
     eventPublisher.publishEvent(responseEvent);
   }
 }

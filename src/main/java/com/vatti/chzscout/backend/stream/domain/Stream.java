@@ -1,35 +1,27 @@
 package com.vatti.chzscout.backend.stream.domain;
 
-import com.vatti.chzscout.backend.tag.domain.entity.Tag;
 import java.util.List;
 
+/** 추천 결과로 반환되는 방송 정보. */
 public record Stream(
-    Integer liveId,
+    int liveId,
     String liveTitle,
     String liveThumbnailImageUrl,
     Integer concurrentUserCount,
-    String openDate,
-    Boolean adult,
-    List<Tag> tags,
-    Tag liveCategory,
     String channelId,
     String channelName,
-    String channelImageUrl) {
+    String liveCategoryValue,
+    List<String> enrichedTags) {
 
-  public static Stream from(AllFieldLiveDto allFieldLiveDto) {
-    List<Tag> tags = allFieldLiveDto.tags().stream().map(Tag::createCustom).toList();
-    Tag liveCategory = Tag.createCategory(allFieldLiveDto.liveCategory());
+  public static Stream from(EnrichedStreamDto dto) {
     return new Stream(
-        allFieldLiveDto.liveId(),
-        allFieldLiveDto.liveTitle(),
-        allFieldLiveDto.liveThumbnailImageUrl(),
-        allFieldLiveDto.concurrentUserCount(),
-        allFieldLiveDto.openDate(),
-        allFieldLiveDto.adult(),
-        tags,
-        liveCategory,
-        allFieldLiveDto.channelId(),
-        allFieldLiveDto.channelName(),
-        allFieldLiveDto.channelImageUrl());
+        dto.liveId(),
+        dto.liveTitle(),
+        dto.liveThumbnailImageUrl(),
+        dto.concurrentUserCount(),
+        dto.channelId(),
+        dto.channelName(),
+        dto.liveCategoryValue(),
+        dto.enrichedTags());
   }
 }
