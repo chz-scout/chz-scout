@@ -2,7 +2,7 @@
 # Stage 1: Build
 # Gradle + JDK 환경에서 애플리케이션 빌드
 # ============================================
-FROM gradle:8.5-jdk17 AS builder
+FROM gradle:8.14-jdk17 AS builder
 
 WORKDIR /app
 
