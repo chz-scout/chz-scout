@@ -32,6 +32,9 @@ FROM eclipse-temurin:17-jre-alpine
 
 WORKDIR /app
 
+# 헬스체크용 curl 설치 (Alpine 기본 이미지에 없음)
+RUN apk add --no-cache curl
+
 # 보안: root 대신 일반 사용자로 실행
 # -S: 시스템 계정 (로그인 불가, 서비스용)
 # -g/-u 1001: 충돌 방지를 위한 고정 ID
@@ -52,7 +55,7 @@ USER appuser
 # --start-period: Spring Boot 초기화 시간 고려 (60초)
 # /actuator/health: Spring Boot Actuator 헬스체크 엔드포인트
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+    CMD curl -f http://localhost:8080/actuator/health || exit 1
 
 # 문서화: 이 컨테이너가 사용하는 포트
 EXPOSE 8080
