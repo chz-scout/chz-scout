@@ -1,12 +1,44 @@
+# ============================================
+# chz-scout Docker Compose
+# ============================================
 version: '3.8'
 
 services:
+  # ============================================
+  # 애플리케이션
+  # ============================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chz-scout-app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    # .env 파일의 모든 환경변수를 컨테이너에 주입
+    env_file:
+      - .env
+    environment:
+      # .env에 없는 고정값만 여기에 작성
+      TZ: Asia/Seoul
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - chz-scout-network
+
+  # ============================================
+  # MySQL 데이터베이스
+  # ============================================
   mysql:
     image: mysql:8.0
     container_name: chz-scout-mysql
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      MYSQL_ROOT_PASSWORD: password
       MYSQL_DATABASE: chz_scout
       TZ: Asia/Seoul
     ports:
@@ -22,7 +54,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - chz-scout-network
 
+  # ============================================
+  # Redis 캐시
+  # ============================================
   redis:
     image: redis:7-alpine
     container_name: chz-scout-redis
@@ -37,7 +74,19 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - chz-scout-network
 
+# ============================================
+# 볼륨 (데이터 영속성)
+# ============================================
 volumes:
   mysql-data:
   redis-data:
+
+# ============================================
+# 네트워크 (서비스 간 통신)
+# ============================================
+networks:
+  chz-scout-network:
+    driver: bridge
