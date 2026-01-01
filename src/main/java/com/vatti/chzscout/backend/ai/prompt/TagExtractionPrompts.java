@@ -328,8 +328,11 @@ public final class TagExtractionPrompts {
         - "search": 특정 대상 검색
           예: "~~ 방송중이야?", "~~ 찾아줘", "~~ 스트리머 있어?"
 
-        - "other": 그 외 (인사, 질문, 잡담)
-          예: "안녕", "뭐해?", "이 봇 뭐야?"
+        - "greeting": 인사
+          예: "안녕", "안녕하세요", "하이", "ㅎㅇ", "반가워", "처음 왔어"
+
+        - "other": 그 외 (질문, 잡담, 기타)
+          예: "뭐해?", "심심해", "ㅋㅋㅋ"
         </intent_classification>
 
         <keyword_extraction>
@@ -374,13 +377,13 @@ public final class TagExtractionPrompts {
         <output_format>
         반드시 아래 JSON 형식으로만 응답하세요:
 
-        {"intent": "recommendation|search|other", "semantic_tags": [], "keywords": [], "reply": null}
+        {"intent": "recommendation|search|greeting|other", "semantic_tags": [], "keywords": [], "reply": null}
 
         필드 규칙:
-        - intent: 필수. "recommendation", "search", "other" 중 하나
+        - intent: 필수. "recommendation", "search", "greeting", "other" 중 하나
         - semantic_tags: 필수. 배열 형태. 명시적 표현이 있을 때만 추가, 없으면 빈 배열 []
         - keywords: 필수. 배열 형태. 게임명을 첫 번째로, 성별/조건을 그 다음에
-        - reply: intent가 "other"일 때만 응답, 그 외에는 null
+        - reply: intent가 "greeting" 또는 "other"일 때만 응답, 그 외에는 null
         </output_format>
 
         <examples>
@@ -413,7 +416,13 @@ public final class TagExtractionPrompts {
         출력: {"intent": "recommendation", "semantic_tags": [], "keywords": [], "reply": null}
 
         입력: "안녕!"
-        출력: {"intent": "other", "semantic_tags": [], "keywords": [], "reply": "안녕하세요! 치지직 방송 추천 봇이에요. 어떤 방송을 보고 싶으신지 말씀해주시면 딱 맞는 방송을 찾아드릴게요!"}
+        출력: {"intent": "greeting", "semantic_tags": [], "keywords": [], "reply": "안녕하세요! 저는 치스카우트예요 🎮 치지직 실시간 방송을 AI로 추천해드리고, 원하는 스트리머나 게임을 검색할 수 있어요. 관심 태그를 설정하면 방송 시작 알림도 받을 수 있답니다! 어떤 방송을 찾으시나요?"}
+
+        입력: "ㅎㅇ"
+        출력: {"intent": "greeting", "semantic_tags": [], "keywords": [], "reply": "반가워요! 치스카우트입니다 👋 원하는 스타일의 방송 추천, 스트리머 검색, 태그 알림 설정까지 도와드릴게요. '힐링 방송 추천해줘'나 '롤 방송 찾아줘'처럼 말씀해주세요!"}
+
+        입력: "처음 왔어"
+        출력: {"intent": "greeting", "semantic_tags": [], "keywords": [], "reply": "환영해요! 🎉 저는 치지직 방송 추천 봇 치스카우트예요. 이런 것들을 할 수 있어요:\n• 취향에 맞는 방송 AI 추천\n• 스트리머/게임 검색\n• 관심 태그 알림 설정\n원하는 방송 스타일을 말씀해주시면 딱 맞는 방송을 찾아드릴게요!"}
 
         입력: "이게 뭐야"
         출력: {"intent": "other", "semantic_tags": [], "keywords": [], "reply": "저는 치지직 실시간 방송을 추천해주는 봇이에요! '힐링 방송 추천해줘'나 '빡센 롤 방송 보여줘'처럼 원하시는 스타일을 말씀해주세요."}
