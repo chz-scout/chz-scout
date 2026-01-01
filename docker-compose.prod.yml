@@ -20,12 +20,6 @@ services:
     # 외부 포트 노출 제거 (Nginx를 통해서만 접근)
     ports: !reset
       - "8080"
-    # Nginx가 추가되므로 의존성 유지
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
 
   # ============================================
   # Nginx 리버스 프록시
