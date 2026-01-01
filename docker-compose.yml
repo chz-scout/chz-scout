@@ -30,12 +30,15 @@ services:
       - chz-scout-network
 
   # ============================================
-  # MySQL 데이터베이스
+
+  # MySQL 데이터베이스 (로컬 개발용, 프로덕션은 RDS 사용)
   # ============================================
   mysql:
     image: mysql:8.0
     container_name: chz-scout-mysql
     restart: unless-stopped
+    profiles:
+      - local
     env_file:
       - .env
     environment:
