@@ -22,43 +22,11 @@ services:
       # .env에 없는 고정값만 여기에 작성
       TZ: Asia/Seoul
     depends_on:
-      mysql:
-        condition: service_healthy
       redis:
         condition: service_healthy
     networks:
       - chz-scout-network
 
-  # ============================================
-
-  # MySQL 데이터베이스 (로컬 개발용, 프로덕션은 RDS 사용)
-  # ============================================
-  mysql:
-    image: mysql:8.0
-    container_name: chz-scout-mysql
-    restart: unless-stopped
-    profiles:
-      - local
-    env_file:
-      - .env
-    environment:
-      MYSQL_DATABASE: chz_scout
-      TZ: Asia/Seoul
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql-data:/var/lib/mysql
-      - ./docker/mysql/init:/docker-entrypoint-initdb.d
-    command:
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - chz-scout-network
 
   # ============================================
   # Redis 캐시

@@ -1,0 +1,47 @@
+# ============================================
+# chz-scout Docker Compose - Local Override
+# ============================================
+# 사용법: docker compose -f docker-compose.yml -f docker-compose.local.yml up -d
+#
+# 로컬 개발 환경 전용 설정
+# - MySQL 컨테이너 포함
+# - App이 MySQL에 의존
+
+services:
+  # ============================================
+  # App 서비스 오버라이드 (MySQL 의존성 추가)
+  # ============================================
+  app:
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ============================================
+  # MySQL 데이터베이스 (로컬 개발용)
+  # ============================================
+  mysql:
+    image: mysql:8.0
+    container_name: chz-scout-mysql
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      MYSQL_DATABASE: chz_scout
+      TZ: Asia/Seoul
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - chz-scout-network

@@ -20,10 +20,6 @@ services:
     # 외부 포트 노출 제거 (Nginx를 통해서만 접근)
     ports: !reset
       - "8080"
-    # 프로덕션: RDS 사용하므로 MySQL 의존성 제거
-    depends_on:
-      redis:
-        condition: service_healthy
 
   # ============================================
   # Nginx 리버스 프록시
