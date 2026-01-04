@@ -40,6 +40,10 @@ public class Member extends BaseEntity {
   @Column(name = "role")
   private String role;
 
+  /** DM 알림 수신 여부. true면 태그 매칭 시 Discord DM으로 알림 발송. */
+  @Column(name = "notification_enabled", nullable = false)
+  private boolean notificationEnabled = false;
+
   private Member(String discordId, String nickname, String email) {
     this.uuid = UUID.randomUUID().toString();
     this.discordId = discordId;
@@ -90,5 +94,14 @@ public class Member extends BaseEntity {
   public void updateProfile(String email, String nickname) {
     updateEmail(email);
     updateNickname(nickname);
+  }
+
+  /**
+   * DM 알림 수신 설정을 변경합니다.
+   *
+   * @param enabled true면 알림 수신, false면 알림 미수신
+   */
+  public void updateNotificationEnabled(boolean enabled) {
+    this.notificationEnabled = enabled;
   }
 }

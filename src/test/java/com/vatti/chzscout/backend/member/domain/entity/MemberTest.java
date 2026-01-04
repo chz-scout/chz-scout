@@ -139,4 +139,46 @@ class MemberTest {
       assertThat(member.getEmailHash()).isNotNull();
     }
   }
+
+  @Nested
+  @DisplayName("notificationEnabled 필드")
+  class NotificationEnabledTest {
+
+    @Test
+    @DisplayName("생성 시 기본값은 false이다")
+    void create_DefaultNotificationEnabledIsFalse() {
+      // given & when
+      Member member = Member.create(discordId, nickname, email);
+
+      // then
+      assertThat(member.isNotificationEnabled()).isFalse();
+    }
+
+    @Test
+    @DisplayName("알림 설정을 true로 변경할 수 있다")
+    void updateNotificationEnabled_ToTrue() {
+      // given
+      Member member = Member.create(discordId, nickname, email);
+
+      // when
+      member.updateNotificationEnabled(true);
+
+      // then
+      assertThat(member.isNotificationEnabled()).isTrue();
+    }
+
+    @Test
+    @DisplayName("알림 설정을 false로 변경할 수 있다")
+    void updateNotificationEnabled_ToFalse() {
+      // given
+      Member member = Member.create(discordId, nickname, email);
+      member.updateNotificationEnabled(true);
+
+      // when
+      member.updateNotificationEnabled(false);
+
+      // then
+      assertThat(member.isNotificationEnabled()).isFalse();
+    }
+  }
 }
