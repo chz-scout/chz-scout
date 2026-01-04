@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.User;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 /**
@@ -16,7 +16,7 @@ import org.springframework.stereotype.Service;
  * <p>유저의 Discord ID를 통해 Private Channel을 열고 메시지를 발송합니다. DM 발송은 봇과 유저가 공통 서버를 공유해야 가능합니다.
  */
 @Service
-@ConditionalOnBean(JDA.class)
+@Profile("!test")
 @Slf4j
 @RequiredArgsConstructor
 public class DiscordDmService {
