@@ -28,7 +28,7 @@ public class StreamRedisStore {
 
   private static final String ENRICHED_STREAMS_KEY = "stream:enriched";
   private static final String STREAM_HASHES_KEY = "stream:hashes";
-  private static final Duration DEFAULT_TTL = Duration.ofMinutes(10);
+  private static final Duration DEFAULT_TTL = Duration.ofMinutes(15);
 
   private final StringRedisTemplate redisTemplate;
   private final JsonMapper jsonMapper;

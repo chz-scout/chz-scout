@@ -42,7 +42,7 @@ class StreamRedisStoreTest {
   class SaveEnrichedStreams {
 
     @Test
-    @DisplayName("Enriched 방송 목록을 저장하면 TTL 10분과 함께 Redis에 저장된다")
+    @DisplayName("Enriched 방송 목록을 저장하면 TTL 15분과 함께 Redis에 저장된다")
     void success() {
       // when
       streamRedisStore.saveEnrichedStreams(testStreams);
@@ -54,7 +54,7 @@ class StreamRedisStoreTest {
       Long expireSeconds = stringRedisTemplate.getExpire("stream:enriched");
       assertThat(expireSeconds)
           .isGreaterThan(0)
-          .isLessThanOrEqualTo(Duration.ofMinutes(10).toSeconds());
+          .isLessThanOrEqualTo(Duration.ofMinutes(15).toSeconds());
     }
 
     @Test
