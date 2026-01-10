@@ -24,6 +24,9 @@ public class OpenAiConfig {
    */
   @Bean
   public OpenAIClient openAIClient() {
-    return OpenAIOkHttpClient.builder().apiKey(properties.getKey()).build();
+    return OpenAIOkHttpClient.builder()
+        .apiKey(properties.getKey())
+        .baseUrl(properties.getBaseUrl())
+        .build();
   }
 }

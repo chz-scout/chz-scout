@@ -43,5 +43,5 @@ discord:
 openai:
   api:
     key: test-api-key
-    model: gpt-4o-mini
+    model: gpt-5-nano
     base-url: https://api.openai.com

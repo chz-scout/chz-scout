@@ -68,7 +68,25 @@ dependencies {
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+	useJUnitPlatform {
+		excludeTags 'load-test'
+	}
+}
+
+tasks.register('loadTest', Test) {
+	group = 'verification'
+	description = 'Run load/performance tests'
+
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+
+	useJUnitPlatform {
+		includeTags 'load-test'
+	}
+
+	testLogging {
+		showStandardStreams = true
+	}
 }
 
 tasks.named('check') {
