@@ -14,6 +14,7 @@ import com.vatti.chzscout.backend.ai.domain.event.AiMessageResponseReceivedEvent
 import com.vatti.chzscout.backend.stream.application.service.StreamRecommendationService;
 import com.vatti.chzscout.backend.stream.domain.Stream;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.unions.MessageChannelUnion;
@@ -73,7 +74,7 @@ class MessageListenerTest {
 
       // then
       verify(channel, never()).sendMessage(anyString());
-      verify(aiChatService, never()).analyzeUserMessage(anyString());
+      verify(aiChatService, never()).analyzeUserMessageAsync(anyString());
       verify(eventPublisher, never()).publishEvent(any());
     }
 
@@ -90,7 +91,7 @@ class MessageListenerTest {
       // then
       verify(channel).sendMessage(contains("너무 짧아요"));
       verify(messageCreateAction).queue();
-      verify(aiChatService, never()).analyzeUserMessage(anyString());
+      verify(aiChatService, never()).analyzeUserMessageAsync(anyString());
     }
 
     @Test
@@ -107,7 +108,7 @@ class MessageListenerTest {
       // then
       verify(channel).sendMessage(contains("너무 길어요"));
       verify(messageCreateAction).queue();
-      verify(aiChatService, never()).analyzeUserMessage(anyString());
+      verify(aiChatService, never()).analyzeUserMessageAsync(anyString());
     }
 
     @Test
@@ -119,7 +120,8 @@ class MessageListenerTest {
 
       UserMessageAnalysisResult analysisResult =
           new UserMessageAnalysisResult("recommendation", List.of(), List.of("롤"), null);
-      given(aiChatService.analyzeUserMessage("롤 방송 추천해줘")).willReturn(analysisResult);
+      given(aiChatService.analyzeUserMessageAsync("롤 방송 추천해줘"))
+          .willReturn(CompletableFuture.completedFuture(analysisResult));
 
       List<Stream> streams =
           List.of(
@@ -151,7 +153,8 @@ class MessageListenerTest {
 
       UserMessageAnalysisResult analysisResult =
           new UserMessageAnalysisResult("recommendation", List.of(), List.of("특이한게임"), null);
-      given(aiChatService.analyzeUserMessage("특이한게임 방송 추천해줘")).willReturn(analysisResult);
+      given(aiChatService.analyzeUserMessageAsync("특이한게임 방송 추천해줘"))
+          .willReturn(CompletableFuture.completedFuture(analysisResult));
       given(streamRecommendationService.recommend(List.of("특이한게임"))).willReturn(List.of());
 
       // when
@@ -176,7 +179,8 @@ class MessageListenerTest {
 
       UserMessageAnalysisResult analysisResult =
           new UserMessageAnalysisResult("other", List.of(), List.of(), "안녕하세요! 무엇을 도와드릴까요?");
-      given(aiChatService.analyzeUserMessage("안녕하세요")).willReturn(analysisResult);
+      given(aiChatService.analyzeUserMessageAsync("안녕하세요"))
+          .willReturn(CompletableFuture.completedFuture(analysisResult));
 
       // when
       messageListener.onMessageReceived(event);
@@ -198,8 +202,8 @@ class MessageListenerTest {
       // given
       given(author.isBot()).willReturn(false);
       given(message.getContentRaw()).willReturn("롤 방송 추천해줘");
-      given(aiChatService.analyzeUserMessage(anyString()))
-          .willThrow(new RuntimeException("AI 서비스 오류"));
+      given(aiChatService.analyzeUserMessageAsync(anyString()))
+          .willReturn(CompletableFuture.failedFuture(new RuntimeException("AI 서비스 오류")));
 
       // when
       messageListener.onMessageReceived(event);
@@ -219,7 +223,8 @@ class MessageListenerTest {
 
       UserMessageAnalysisResult analysisResult =
           new UserMessageAnalysisResult("recommendation", List.of("빡겜"), List.of("롤"), null);
-      given(aiChatService.analyzeUserMessage("빡센 롤 방송 추천해줘")).willReturn(analysisResult);
+      given(aiChatService.analyzeUserMessageAsync("빡센 롤 방송 추천해줘"))
+          .willReturn(CompletableFuture.completedFuture(analysisResult));
       given(streamRecommendationService.recommend(any())).willReturn(List.of());
 
       // when

@@ -17,18 +17,24 @@ import com.vatti.chzscout.backend.ai.prompt.TagExtractionPrompts;
 import com.vatti.chzscout.backend.ai.prompt.TagExtractionPrompts.StreamInput;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class AiChatServiceTest {
 
   @Mock OpenAiChatClient openAiChatClient;
+  @Spy ExecutorService aiExecutor = Executors.newVirtualThreadPerTaskExecutor();
   @InjectMocks AiChatService aiChatService;
 
   @Nested
@@ -59,6 +65,86 @@ class AiChatServiceTest {
       verify(openAiChatClient)
           .chatWithStructuredOutput(
               anyString(), eq(userMessage), eq(UserMessageAnalysisResult.class));
+    }
+  }
+
+  @Nested
+  @DisplayName("analyzeUserMessageAsync 메서드 테스트")
+  class AnalyzeUserMessageAsync {
+
+    @Test
+    @DisplayName("유저 메시지를 비동기로 분석하여 CompletableFuture로 결과를 반환한다")
+    void returnsCompletableFutureWithResult() throws ExecutionException, InterruptedException {
+      // given
+      String userMessage = "롤 방송 추천해줘";
+      UserMessageAnalysisResult expectedResult =
+          new UserMessageAnalysisResult("recommendation", List.of(), List.of("롤"), null);
+
+      given(
+              openAiChatClient.chatWithStructuredOutput(
+                  eq(TagExtractionPrompts.USER_MESSAGE_ANALYSIS_SYSTEM),
+                  eq(userMessage),
+                  eq(UserMessageAnalysisResult.class)))
+          .willReturn(expectedResult);
+
+      // when
+      CompletableFuture<UserMessageAnalysisResult> future =
+          aiChatService.analyzeUserMessageAsync(userMessage);
+      UserMessageAnalysisResult result = future.get();
+
+      // then
+      assertThat(result.getIntent()).isEqualTo("recommendation");
+      assertThat(result.getKeywords()).containsExactly("롤");
+    }
+
+    @Test
+    @DisplayName("AI 호출이 aiExecutor에서 실행된다")
+    void executesOnAiExecutor() throws ExecutionException, InterruptedException {
+      // given
+      String userMessage = "안녕하세요";
+      UserMessageAnalysisResult expectedResult =
+          new UserMessageAnalysisResult("other", List.of(), List.of(), "안녕하세요!");
+
+      given(
+              openAiChatClient.chatWithStructuredOutput(
+                  eq(TagExtractionPrompts.USER_MESSAGE_ANALYSIS_SYSTEM),
+                  eq(userMessage),
+                  eq(UserMessageAnalysisResult.class)))
+          .willReturn(expectedResult);
+
+      // when
+      CompletableFuture<UserMessageAnalysisResult> future =
+          aiChatService.analyzeUserMessageAsync(userMessage);
+      future.get();
+
+      // then
+      verify(aiExecutor).execute(any(Runnable.class));
+    }
+
+    @Test
+    @DisplayName("AI 서비스 예외 발생 시 CompletableFuture가 예외를 전파한다")
+    void propagatesExceptionThroughFuture() {
+      // given
+      String userMessage = "롤 방송 추천해줘";
+
+      given(
+              openAiChatClient.chatWithStructuredOutput(
+                  eq(TagExtractionPrompts.USER_MESSAGE_ANALYSIS_SYSTEM),
+                  eq(userMessage),
+                  eq(UserMessageAnalysisResult.class)))
+          .willThrow(new RuntimeException("AI 서비스 오류"));
+
+      // when
+      CompletableFuture<UserMessageAnalysisResult> future =
+          aiChatService.analyzeUserMessageAsync(userMessage);
+
+      // then
+      assertThat(future)
+          .isCompletedExceptionally()
+          .failsWithin(java.time.Duration.ofSeconds(1))
+          .withThrowableOfType(ExecutionException.class)
+          .withCauseInstanceOf(RuntimeException.class)
+          .withMessageContaining("AI 서비스 오류");
     }
   }
 
