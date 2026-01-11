@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.LongSummaryStatistics;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -206,8 +207,8 @@ class AiChatServiceLoadTest {
 
     long syncStart = System.currentTimeMillis();
 
-    // 작업 실행 중 최대 스레드 수 측정
-    int[] maxPlatformThreads = {0};
+    // 작업 실행 중 최대 스레드 수 측정 (AtomicInteger로 동시성 안전하게)
+    AtomicInteger maxPlatformThreads = new AtomicInteger(0);
     List<CompletableFuture<Void>> syncFutures = new ArrayList<>();
     for (int i = 0; i < requestCount; i++) {
       final int id = i;
@@ -217,7 +218,7 @@ class AiChatServiceLoadTest {
                 String threadName = Thread.currentThread().getName();
                 long taskStart = System.currentTimeMillis();
 
-                maxPlatformThreads[0] = Math.max(maxPlatformThreads[0], Thread.activeCount());
+                maxPlatformThreads.updateAndGet(current -> Math.max(current, Thread.activeCount()));
                 aiChatService.analyzeUserMessage("동기 #" + id);
 
                 long taskDuration = System.currentTimeMillis() - taskStart;
@@ -229,15 +230,15 @@ class AiChatServiceLoadTest {
     long syncTime = System.currentTimeMillis() - syncStart;
     platformExecutor.shutdown();
 
-    int platformThreadsUsed = maxPlatformThreads[0] - baselineThreadCount;
+    int platformThreadsUsed = maxPlatformThreads.get() - baselineThreadCount;
 
     // ========== 비동기 방식: Virtual Thread ==========
     Thread.sleep(100);
     int asyncBaselineThreadCount = Thread.activeCount();
 
-    // Virtual Thread별 사용 시간 기록
+    // Virtual Thread별 사용 시간 기록 (AtomicInteger로 동시성 안전하게)
     ConcurrentHashMap<String, Long> virtualThreadUsageTime = new ConcurrentHashMap<>();
-    int[] maxVirtualCarrierThreads = {0};
+    AtomicInteger maxVirtualCarrierThreads = new AtomicInteger(0);
 
     long asyncStart = System.currentTimeMillis();
     List<CompletableFuture<Void>> asyncFutures = new ArrayList<>();
@@ -254,15 +255,15 @@ class AiChatServiceLoadTest {
                     virtualThreadUsageTime.merge(current.getName(), taskDuration, Long::sum);
 
                     if (!current.isVirtual()) {
-                      maxVirtualCarrierThreads[0] =
-                          Math.max(maxVirtualCarrierThreads[0], Thread.activeCount());
+                      maxVirtualCarrierThreads.updateAndGet(
+                          curr -> Math.max(curr, Thread.activeCount()));
                     }
                   }));
     }
     asyncFutures.forEach(CompletableFuture::join);
     long asyncTime = System.currentTimeMillis() - asyncStart;
 
-    int carrierThreadsUsed = maxVirtualCarrierThreads[0] - asyncBaselineThreadCount;
+    int carrierThreadsUsed = maxVirtualCarrierThreads.get() - asyncBaselineThreadCount;
     int estimatedCarrierThreads =
         carrierThreadsUsed > 0 ? carrierThreadsUsed : Runtime.getRuntime().availableProcessors();
 

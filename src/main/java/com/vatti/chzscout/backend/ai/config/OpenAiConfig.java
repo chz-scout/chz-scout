@@ -35,11 +35,12 @@ public class OpenAiConfig {
   /**
    * AI 작업 전용 Virtual Thread Executor.
    *
-   * <p>OpenAI API 호출은 I/O 대기 시간이 길어 Virtual Thread 사용이 효과적입니다.
+   * <p>OpenAI API 호출은 I/O 대기 시간이 길어 Virtual Thread 사용이 효과적입니다. destroyMethod로 애플리케이션 종료 시
+   * ExecutorService를 정리합니다.
    *
    * @return Virtual Thread 기반 ExecutorService
    */
-  @Bean("aiExecutor")
+  @Bean(name = "aiExecutor", destroyMethod = "shutdown")
   public ExecutorService aiExecutor() {
     return Executors.newVirtualThreadPerTaskExecutor();
   }
