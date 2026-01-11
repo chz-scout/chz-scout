@@ -51,13 +51,31 @@ public class MessageListener extends ListenerAdapter {
       return;
     }
 
+    processMessageAsync(channel, content);
+  }
+
+  /** 동기 방식으로 메시지를 처리합니다. 호출 스레드가 AI 응답까지 블로킹됩니다. */
+  private void processMessageSync(MessageChannelUnion channel, String content) {
     try {
       UserMessageAnalysisResult analysisResult = aiChatService.analyzeUserMessage(content);
       handleAnalysisResult(channel, analysisResult);
     } catch (Exception e) {
-      log.error("메시지 처리 중 오류 발생: {}", e.getMessage(), e);
+      log.error("메시지 처리 중 오류 발생 (동기): {}", e.getMessage(), e);
       channel.sendMessage("죄송해요, 지금은 응답을 드리기 어려워요. 잠시 후 다시 시도해주세요! 🙏").queue();
     }
+  }
+
+  /** 비동기 방식으로 메시지를 처리합니다. Virtual Thread에서 AI 호출이 실행되어 호출 스레드가 즉시 해방됩니다. */
+  private void processMessageAsync(MessageChannelUnion channel, String content) {
+    aiChatService
+        .analyzeUserMessageAsync(content)
+        .thenAccept(result -> handleAnalysisResult(channel, result))
+        .exceptionally(
+            e -> {
+              log.error("메시지 처리 중 오류 발생 (비동기): {}", e.getMessage(), e);
+              channel.sendMessage("죄송해요, 지금은 응답을 드리기 어려워요. 잠시 후 다시 시도해주세요! 🙏").queue();
+              return null;
+            });
   }
 
   private void handleAnalysisResult(MessageChannelUnion channel, UserMessageAnalysisResult result) {
