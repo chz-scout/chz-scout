@@ -34,6 +34,9 @@ public class MemberController {
    */
   @GetMapping("/me")
   public ApiResponse<MemberResponse> getMe(@AuthenticationPrincipal CustomUserDetails userDetails) {
+    if (userDetails == null) {
+      throw new IllegalStateException("인증 정보가 없습니다. 로그인이 필요합니다.");
+    }
     return ApiResponse.success(memberUseCase.getCurrentMember(userDetails.getMember()));
   }
 
@@ -47,6 +50,9 @@ public class MemberController {
   @PatchMapping("/me/notification")
   public ApiResponse<Boolean> updateNotification(
       @RequestParam boolean enabled, @AuthenticationPrincipal CustomUserDetails userDetails) {
+    if (userDetails == null) {
+      throw new IllegalStateException("인증 정보가 없습니다. 로그인이 필요합니다.");
+    }
     return ApiResponse.success(
         memberUseCase.updateNotificationEnabled(userDetails.getMember(), enabled));
   }
