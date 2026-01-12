@@ -2,7 +2,7 @@
 # Stage 1: Build
 # Gradle + JDK 환경에서 애플리케이션 빌드
 # ============================================
-FROM gradle:8.14-jdk17 AS builder
+FROM gradle:8.14-jdk21 AS builder
 
 WORKDIR /app
 
@@ -28,7 +28,7 @@ RUN gradle bootJar --no-daemon -x test
 # Stage 2: Runtime
 # JRE만 포함된 경량 이미지로 실행
 # ============================================
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
