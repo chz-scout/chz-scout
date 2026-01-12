@@ -79,6 +79,8 @@ public class MessageListener extends ListenerAdapter {
   }
 
   private void handleAnalysisResult(MessageChannelUnion channel, UserMessageAnalysisResult result) {
+    log.info("AI 분석 결과 - intent: {}, reply: {}", result.getIntent(), result.getReply());
+
     if (result.isRecommendationRequest()) {
       // 의미 태그와 키워드를 합쳐서 검색
       List<String> allTags = combineTagsAndKeywords(result);
@@ -98,8 +100,12 @@ public class MessageListener extends ListenerAdapter {
         publishResponse(channel, recommendation);
       }
     } else if (result.hasDirectReply()) {
-      // search 또는 other: GPT가 생성한 reply를 그대로 전송
+      // search, greeting, other: GPT가 생성한 reply를 그대로 전송
       publishResponse(channel, result.getReply());
+    } else {
+      // Fallback: AI가 reply를 생성하지 않은 경우
+      log.warn("AI가 reply를 생성하지 않음 - intent: {}", result.getIntent());
+      publishResponse(channel, "죄송해요, 요청을 이해하지 못했어요. '롤 방송 추천해줘'처럼 원하시는 방송 스타일을 말씀해주세요! 🎮");
     }
   }
 
