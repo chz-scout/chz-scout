@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -49,6 +50,9 @@ public class SecurityConfig {
         .authorizeHttpRequests(
             auth ->
                 auth
+                    // CORS preflight 요청 허용
+                    .requestMatchers(HttpMethod.OPTIONS, "/**")
+                    .permitAll()
                     // Swagger UI
                     .requestMatchers(
                         "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/v3/api-docs")
