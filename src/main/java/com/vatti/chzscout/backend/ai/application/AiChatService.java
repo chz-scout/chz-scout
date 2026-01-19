@@ -40,7 +40,7 @@ public class AiChatService {
     log.debug("유저 메시지 분석 (동기) - message: {}", userMessage);
 
     return openAiChatClient.chatWithStructuredOutput(
-        TagExtractionPrompts.USER_MESSAGE_ANALYSIS_SYSTEM,
+        TagExtractionPrompts.USER_INTENT_ANALYSIS_SYSTEM,
         userMessage,
         UserMessageAnalysisResult.class);
   }
@@ -59,7 +59,7 @@ public class AiChatService {
     return CompletableFuture.supplyAsync(
         () ->
             openAiChatClient.chatWithStructuredOutput(
-                TagExtractionPrompts.USER_MESSAGE_ANALYSIS_SYSTEM,
+                TagExtractionPrompts.USER_INTENT_ANALYSIS_SYSTEM,
                 userMessage,
                 UserMessageAnalysisResult.class),
         aiExecutor);
