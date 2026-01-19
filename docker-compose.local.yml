@@ -1,47 +1,73 @@
 # ============================================
-# chz-scout Docker Compose - Local Override
+# chz-scout Docker Compose - Local Infrastructure
 # ============================================
-# 사용법: docker compose -f docker-compose.yml -f docker-compose.local.yml up -d
+# 사용법: docker compose -f docker-compose.local.yml up -d
 #
-# 로컬 개발 환경 전용 설정
-# - MySQL 컨테이너 포함
-# - App이 MySQL에 의존
+# 로컬 개발 환경 전용 (인프라만)
+# - PostgreSQL + pgvector
+# - Redis
+# - App은 IDE에서 직접 실행
 
 services:
   # ============================================
-  # App 서비스 오버라이드 (MySQL 의존성 추가)
+  # Redis 캐시
   # ============================================
-  app:
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  # ============================================
-  # MySQL 데이터베이스 (로컬 개발용)
-  # ============================================
-  mysql:
-    image: mysql:8.0
-    container_name: chz-scout-mysql
+  redis:
+    image: redis:7-alpine
+    container_name: chz-scout-redis
     restart: unless-stopped
     env_file:
-      - .env
-    environment:
-      MYSQL_DATABASE: chz_scout
-      TZ: Asia/Seoul
+      - .env.local
     ports:
-      - "3306:3306"
+      - "6379:6379"
     volumes:
-      - mysql-data:/var/lib/mysql
-      - ./docker/mysql/init:/docker-entrypoint-initdb.d
-    command:
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
+      - redis-data:/data
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-password}
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-password}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - chz-scout-network
+
+  # ============================================
+  # PostgreSQL + pgvector (벡터 임베딩 검색용)
+  # ============================================
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: chz-scout-postgres
+    restart: unless-stopped
+    env_file:
+      - .env.local
+    environment:
+      POSTGRES_DB: ${DB_NAME:-chz_scout}
+      POSTGRES_USER: ${DB_USERNAME:-chzscout}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      TZ: Asia/Seoul
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chzscout -d chz_scout"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - chz-scout-network
+
+# ============================================
+# 볼륨 (로컬 개발용)
+# ============================================
+volumes:
+  postgres-data:
+  redis-data:
+
+# ============================================
+# 네트워크 (base 파일과 동일)
+# ============================================
+networks:
+  chz-scout-network:
+    driver: bridge

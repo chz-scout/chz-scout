@@ -76,3 +76,9 @@ openai:
     key: ${OPENAI_API_KEY}
     model: gpt-5-nano
     base-url: https://api.openai.com/v1
+
+# Embedding Settings (벡터 임베딩)
+embedding:
+  model: text-embedding-3-small
+  dimensions: 1536
+  batch-size: 100

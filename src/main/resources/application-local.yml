@@ -1,11 +1,11 @@
 # Local Development Profile
 spring:
-  # Database - Local MySQL
+  # Database - PostgreSQL (pgvector 지원, 로컬은 SSL 비활성화)
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:chz_scout}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:password}
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:chz_scout}?sslmode=disable
+    username: ${DB_USERNAME:chzscout}
+    password: ${DB_PASSWORD:nexonhsk00}
+    driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 5
       minimum-idle: 2

@@ -53,8 +53,11 @@ dependencies {
 	// OpenAI Java SDK
 	implementation 'com.openai:openai-java:4.13.0'
 
+	// PostgreSQL + pgvector (벡터 임베딩 검색용)
+	// Hibernate 7.x는 SqlTypes.VECTOR를 네이티브로 지원
+	runtimeOnly 'org.postgresql:postgresql:42.7.4'
+
 	compileOnly 'org.projectlombok:lombok'
-	runtimeOnly 'com.mysql:mysql-connector-j'
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
@@ -63,6 +66,9 @@ dependencies {
 	testImplementation 'org.wiremock:wiremock-standalone:3.10.0'
 	testImplementation 'com.github.codemonstur:embedded-redis:1.4.3'
 	testImplementation 'org.springframework.security:spring-security-test'
+	// Testcontainers 2.x for pgvector integration tests
+	testImplementation 'org.testcontainers:testcontainers-postgresql:2.0.2'
+	testImplementation 'org.testcontainers:testcontainers-junit-jupiter:2.0.2'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testRuntimeOnly 'com.h2database:h2'
 }
