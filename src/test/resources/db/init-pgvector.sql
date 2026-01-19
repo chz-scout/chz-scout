@@ -9,7 +9,6 @@ CREATE TABLE IF NOT EXISTS stream_embedding (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- 벡터 유사도 검색을 위한 IVFFlat 인덱스
--- 테스트 데이터가 적으므로 lists=10으로 설정 (프로덕션에서는 100 권장)
-CREATE INDEX IF NOT EXISTS idx_stream_embedding_vector
-ON stream_embedding USING ivfflat (embedding vector_cosine_ops) WITH (lists = 10);
+-- 테스트 환경에서는 IVFFlat 인덱스를 생성하지 않음
+-- IVFFlat은 빈 테이블에 생성 시 클러스터가 없어 검색 결과가 부정확해짐
+-- 테스트 데이터가 적으므로 Sequential scan으로 정확한 검색 수행
