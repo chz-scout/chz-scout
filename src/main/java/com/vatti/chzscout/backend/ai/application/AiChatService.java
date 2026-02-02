@@ -6,6 +6,7 @@ import com.vatti.chzscout.backend.ai.domain.dto.UserMessageAnalysisResult;
 import com.vatti.chzscout.backend.ai.infrastructure.OpenAiChatClient;
 import com.vatti.chzscout.backend.ai.prompt.TagExtractionPrompts;
 import com.vatti.chzscout.backend.ai.prompt.TagExtractionPrompts.StreamInput;
+import io.micrometer.core.instrument.Timer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -26,12 +27,13 @@ public class AiChatService {
 
   private final OpenAiChatClient openAiChatClient;
   private final ExecutorService aiExecutor;
+  private final Timer aiApiCallTimer;
 
   /**
-   * 유저 메시지를 분석하여 의도와 태그를 추출합니다.
+   * 유저 메시지를 동기적으로 분석하여 의도와 태그를 추출합니다.
    *
-   * <p>Structured Output을 사용하여 의도 분류, 태그 추출, 응답 생성을 한 번에 처리합니다. Virtual Thread에서 실행되어 I/O 대기 시
-   * 효율적으로 리소스를 활용합니다.
+   * <p>호출 스레드에서 직접 실행되므로 platform thread에서 호출 시 블로킹됩니다. JDA 리스너 등에서는 {@link
+   * #analyzeUserMessageAsync}를 사용하세요.
    *
    * @param userMessage 사용자가 보낸 메시지
    * @return 분석 결과 (intent, tags, reply)
@@ -48,7 +50,8 @@ public class AiChatService {
   /**
    * 유저 메시지를 비동기로 분석하여 의도와 태그를 추출합니다.
    *
-   * <p>Virtual Thread에서 실행되어 호출 스레드를 블로킹하지 않습니다.
+   * <p>Virtual Thread에서 실행되어 호출 스레드를 블로킹하지 않습니다. API 호출 시간은 {@code chzscout.ai.api.duration} 메트릭으로
+   * 측정됩니다.
    *
    * @param userMessage 사용자가 보낸 메시지
    * @return 분석 결과를 담은 CompletableFuture
@@ -58,10 +61,12 @@ public class AiChatService {
 
     return CompletableFuture.supplyAsync(
         () ->
-            openAiChatClient.chatWithStructuredOutput(
-                TagExtractionPrompts.USER_INTENT_ANALYSIS_SYSTEM,
-                userMessage,
-                UserMessageAnalysisResult.class),
+            aiApiCallTimer.record(
+                () ->
+                    openAiChatClient.chatWithStructuredOutput(
+                        TagExtractionPrompts.USER_INTENT_ANALYSIS_SYSTEM,
+                        userMessage,
+                        UserMessageAnalysisResult.class)),
         aiExecutor);
   }
 

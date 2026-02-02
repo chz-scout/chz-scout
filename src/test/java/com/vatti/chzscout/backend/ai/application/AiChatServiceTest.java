@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -15,13 +16,16 @@ import com.vatti.chzscout.backend.ai.domain.dto.UserMessageAnalysisResult;
 import com.vatti.chzscout.backend.ai.infrastructure.OpenAiChatClient;
 import com.vatti.chzscout.backend.ai.prompt.TagExtractionPrompts;
 import com.vatti.chzscout.backend.ai.prompt.TagExtractionPrompts.StreamInput;
+import io.micrometer.core.instrument.Timer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -35,8 +39,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class AiChatServiceTest {
 
   @Mock OpenAiChatClient openAiChatClient;
+  @Mock Timer aiApiCallTimer;
   @Spy ExecutorService aiExecutor = Executors.newVirtualThreadPerTaskExecutor();
   @InjectMocks AiChatService aiChatService;
+
+  @BeforeEach
+  void setUp() {
+    // Timer.record()가 람다를 실행하도록 설정 (비동기 테스트에서만 사용)
+    lenient()
+        .when(aiApiCallTimer.record(any(Supplier.class)))
+        .thenAnswer(invocation -> invocation.<Supplier<?>>getArgument(0).get());
+  }
 
   @AfterEach
   void tearDown() {
