@@ -7,6 +7,7 @@ import com.vatti.chzscout.backend.stream.domain.EnrichedStreamDto;
 import com.vatti.chzscout.backend.stream.domain.Stream;
 import com.vatti.chzscout.backend.stream.fixture.EnrichedStreamDtoFixture;
 import com.vatti.chzscout.backend.stream.infrastructure.redis.StreamRedisStore;
+import io.micrometer.core.instrument.Counter;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -20,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class StreamRecommendationServiceTest {
   @InjectMocks StreamRecommendationService streamRecommendationService;
   @Mock StreamRedisStore streamRedisStore;
+  @Mock Counter recommendationRequestCounter;
 
   // 테스트용 검색 태그
   static final List<String> SINGLE_TAG = List.of("롤");

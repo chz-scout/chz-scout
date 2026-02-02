@@ -4,6 +4,7 @@ import com.vatti.chzscout.backend.stream.application.usecase.RecommendStreamUseC
 import com.vatti.chzscout.backend.stream.domain.EnrichedStreamDto;
 import com.vatti.chzscout.backend.stream.domain.Stream;
 import com.vatti.chzscout.backend.stream.infrastructure.redis.StreamRedisStore;
+import io.micrometer.core.instrument.Counter;
 import java.util.*;
 import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ import org.springframework.stereotype.Service;
 public class StreamRecommendationService implements RecommendStreamUseCase {
 
   private final StreamRedisStore streamRedisStore;
+  private final Counter recommendationRequestCounter;
 
   private static final int MAX_RECOMMENDATIONS = 5;
 
@@ -39,6 +41,7 @@ public class StreamRecommendationService implements RecommendStreamUseCase {
 
   @Override
   public List<Stream> recommend(List<String> searchTags) {
+    recommendationRequestCounter.increment();
     log.debug("방송 추천 요청 - tags: {}", searchTags);
 
     List<EnrichedStreamDto> liveStreams = streamRedisStore.findEnrichedStreams();
