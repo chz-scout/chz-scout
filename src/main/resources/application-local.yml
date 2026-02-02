@@ -52,3 +52,7 @@ openai:
 # Encryption (key from .env.local - DO NOT hardcode!)
 encryption:
   key: ${ENCRYPTION_KEY}
+
+# Loki Settings (Local)
+loki:
+  url: http://localhost:3100/loki/api/v1/push

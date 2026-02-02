@@ -55,3 +55,7 @@ openai:
 # CORS
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:https://chz-scout-frontend.vercel.app}
+
+# Loki Settings (Production)
+loki:
+  url: ${LOKI_URL:http://loki:3100/loki/api/v1/push}
