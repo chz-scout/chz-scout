@@ -10,7 +10,7 @@ scrape_configs:
       - targets: ['app:8080']
         labels:
           application: 'chzscout'
-          environment: 'local'
+          environment: '${ENVIRONMENT:-prod}'
 
   # Prometheus self-monitoring
   - job_name: 'prometheus'
