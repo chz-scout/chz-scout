@@ -82,3 +82,10 @@ embedding:
   model: text-embedding-3-small
   dimensions: 1536
   batch-size: 100
+
+# Recommendation Settings (추천 설정)
+recommendation:
+  weight:
+    tag: 0.3         # 태그 30% (선호 벡터 내)
+    like: 0.7        # 좋아요 70% (선호 벡터 내)
+  threshold: 0.3     # 1차 필터링 최소 유사도

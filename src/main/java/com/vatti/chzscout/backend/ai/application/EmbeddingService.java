@@ -1,14 +1,21 @@
 package com.vatti.chzscout.backend.ai.application;
 
+import com.vatti.chzscout.backend.ai.domain.dto.MemberEmbeddingVectorResult;
+import com.vatti.chzscout.backend.ai.domain.entity.MemberEmbedding;
 import com.vatti.chzscout.backend.ai.domain.entity.StreamEmbedding;
 import com.vatti.chzscout.backend.ai.infrastructure.EmbeddingClient;
+import com.vatti.chzscout.backend.ai.infrastructure.MemberEmbeddingRepository;
+import com.vatti.chzscout.backend.member.domain.entity.Member;
 import com.vatti.chzscout.backend.stream.domain.AllFieldLiveDto;
+import com.vatti.chzscout.backend.tag.application.service.MemberTagService;
+import com.vatti.chzscout.backend.tag.domain.dto.MemberTagListResponse;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
@@ -23,9 +30,19 @@ public class EmbeddingService {
 
   private final EmbeddingClient embeddingClient;
   private final ExecutorService aiExecutor;
+  private final MemberEmbeddingRepository memberEmbeddingRepository;
+  private final MemberTagService memberTagService;
 
   /** 배치 처리 시 한 번에 처리할 방송 수. OpenAI API 제한 고려 (최대 2048개). */
   private static final int BATCH_CHUNK_SIZE = 100;
+
+  /** 태그 임베딩 가중치 (0.0 ~ 1.0). */
+  @Value("${recommendation.weight.tag:0.3}")
+  private float tagWeight;
+
+  /** 좋아요 임베딩 가중치 (0.0 ~ 1.0). */
+  @Value("${recommendation.weight.like:0.7}")
+  private float likeWeight;
 
   /**
    * 단일 방송 정보의 임베딩을 생성합니다.
@@ -38,6 +55,112 @@ public class EmbeddingService {
     float[] embedding = embeddingClient.embed(embeddingText);
 
     return StreamEmbedding.create(stream.channelId(), embeddingText, embedding);
+  }
+
+  /**
+   * 멤버의 통합 선호 벡터를 생성합니다.
+   *
+   * <p>태그 임베딩과 좋아요 임베딩을 가중 합산하여 정규화한 벡터를 반환합니다. 가중치는 recommendation.weight.tag,
+   * recommendation.weight.like 설정으로 조절 가능합니다.
+   *
+   * @param member 멤버 엔티티
+   * @return 통합 선호 벡터 결과 (태그/좋아요가 없으면 null)
+   */
+  public MemberEmbeddingVectorResult createMemberEmbeddingVector(Member member) {
+    List<MemberEmbedding> likeEmbeddings =
+        memberEmbeddingRepository.findTop50ByMemberOrderByUpdatedAtDesc(member);
+    MemberTagListResponse memberTags = memberTagService.getMemberTags(member.getUuid());
+
+    // 좋아요 평균 벡터
+    float[] likeAverage = null;
+    if (!likeEmbeddings.isEmpty()) {
+      List<float[]> likeVectors =
+          likeEmbeddings.stream().map(MemberEmbedding::getEmbedding).toList();
+      likeAverage = averageVectors(likeVectors);
+    }
+
+    // 태그 임베딩
+    float[] tagEmbedding = null;
+    String tagText = buildTagText(memberTags);
+    if (!tagText.isBlank()) {
+      tagEmbedding = embeddingClient.embed(tagText);
+    }
+
+    // 둘 다 없으면 null
+    if (likeAverage == null && tagEmbedding == null) {
+      return null;
+    }
+
+    // 가중 합산
+    float[] combined = weightedCombine(tagEmbedding, likeAverage);
+    float[] normalized = normalize(combined);
+
+    return MemberEmbeddingVectorResult.of(member.getUuid(), normalized);
+  }
+
+  private float[] weightedCombine(float[] tagVector, float[] likeVector) {
+    // 한쪽만 있으면 그대로 반환
+    if (tagVector == null) {
+      return likeVector;
+    }
+    if (likeVector == null) {
+      return tagVector;
+    }
+
+    // 가중 합산
+    int dimension = tagVector.length;
+    float[] result = new float[dimension];
+
+    for (int i = 0; i < dimension; i++) {
+      result[i] = (tagWeight * tagVector[i]) + (likeWeight * likeVector[i]);
+    }
+
+    return result;
+  }
+
+  private String buildTagText(MemberTagListResponse memberTags) {
+    List<String> tagNames = new ArrayList<>();
+
+    memberTags.customTags().forEach(tag -> tagNames.add(tag.tagName()));
+    memberTags.categoryTags().forEach(tag -> tagNames.add(tag.tagName()));
+
+    return String.join(", ", tagNames);
+  }
+
+  private float[] averageVectors(List<float[]> vectors) {
+    int dimension = vectors.get(0).length;
+    float[] result = new float[dimension];
+
+    for (float[] vector : vectors) {
+      for (int i = 0; i < dimension; i++) {
+        result[i] += vector[i];
+      }
+    }
+
+    for (int i = 0; i < dimension; i++) {
+      result[i] /= vectors.size();
+    }
+
+    return result;
+  }
+
+  private float[] normalize(float[] vector) {
+    float magnitude = 0;
+    for (float v : vector) {
+      magnitude += v * v;
+    }
+    magnitude = (float) Math.sqrt(magnitude);
+
+    if (magnitude == 0) {
+      return vector;
+    }
+
+    float[] normalized = new float[vector.length];
+    for (int i = 0; i < vector.length; i++) {
+      normalized[i] = vector[i] / magnitude;
+    }
+
+    return normalized;
   }
 
   /**
