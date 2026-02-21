@@ -32,19 +32,19 @@ public class MessageListener extends ListenerAdapter {
 
   @Override
   public void onMessageReceived(MessageReceivedEvent event) {
-    long startTime = System.nanoTime();
-
     // 봇이 보낸 메시지는 무시 (무한 루프 방지)
     if (event.getAuthor().isBot()) {
       return;
     }
 
+    long startTime = System.nanoTime();
     String content = event.getMessage().getContentRaw().trim();
     String authorName = event.getAuthor().getName();
     MessageChannelUnion channel = event.getChannel();
 
     log.info("메시지 수신: {} - {}", authorName, content);
 
+    // 길이 검증
     if (content.length() < MIN_LENGTH) {
       channel.sendMessage("메시지가 너무 짧아요! 2자 이상 입력해주세요 ✍️").queue();
       logElapsedTime(startTime, "유효성 검증 실패 (길이 부족)");
@@ -57,29 +57,36 @@ public class MessageListener extends ListenerAdapter {
       return;
     }
 
-    // 1. GPT로 메시지 의도 분석
-    try {
-      UserMessageAnalysisResult analysis = aiChatService.analyzeUserMessage(content);
-      log.info(
-          "의도 분석 결과 - intent: {}, tags: {}, keywords: {}",
-          analysis.getIntent(),
-          analysis.getSemanticTags(),
-          analysis.getKeywords());
+    // 비동기로 GPT 분석 후 처리 (Virtual Thread Executor에서 실행)
+    aiChatService
+        .analyzeUserMessageAsync(content)
+        .thenAccept(analysis -> handleAnalysisResult(channel, analysis, startTime))
+        .exceptionally(
+            e -> {
+              log.error("메시지 처리 중 오류 발생: {}", e.getMessage(), e);
+              publishResponse(channel, "죄송해요, 지금은 응답을 드리기 어려워요. 잠시 후 다시 시도해주세요! 🙏");
+              logElapsedTime(startTime, "오류 발생");
+              return null;
+            });
+  }
 
-      // 2. intent에 따라 분기
-      if (analysis.isRecommendationRequest()) {
-        processMessageAsyncWithEmbedding(channel, analysis, startTime);
-      } else if (analysis.hasDirectReply()) {
-        publishResponse(channel, analysis.getReply());
-        logElapsedTime(startTime, "직접 응답");
-      } else {
-        publishResponse(channel, "죄송해요, 요청을 이해하지 못했어요. '롤 방송 추천해줘'처럼 원하시는 방송 스타일을 말씀해주세요! 🎮");
-        logElapsedTime(startTime, "의도 파악 실패");
-      }
-    } catch (Exception e) {
-      log.error("메시지 처리 중 오류 발생: {}", e.getMessage(), e);
-      publishResponse(channel, "죄송해요, 지금은 응답을 드리기 어려워요. 잠시 후 다시 시도해주세요! 🙏");
-      logElapsedTime(startTime, "오류 발생");
+  /** 분석 결과를 처리합니다. */
+  private void handleAnalysisResult(
+      MessageChannelUnion channel, UserMessageAnalysisResult analysis, long startTime) {
+    log.info(
+        "의도 분석 결과 - intent: {}, tags: {}, keywords: {}",
+        analysis.getIntent(),
+        analysis.getSemanticTags(),
+        analysis.getKeywords());
+
+    if (analysis.isRecommendationRequest()) {
+      processMessageAsyncWithEmbedding(channel, analysis, startTime);
+    } else if (analysis.hasDirectReply()) {
+      publishResponse(channel, analysis.getReply());
+      logElapsedTime(startTime, "직접 응답");
+    } else {
+      publishResponse(channel, "죄송해요, 요청을 이해하지 못했어요. '롤 방송 추천해줘'처럼 원하시는 방송 스타일을 말씀해주세요! 🎮");
+      logElapsedTime(startTime, "의도 파악 실패");
     }
   }
 

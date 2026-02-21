@@ -16,6 +16,7 @@ import com.vatti.chzscout.backend.ai.domain.dto.UserMessageAnalysisResult;
 import com.vatti.chzscout.backend.ai.domain.event.AiMessageResponseReceivedEvent;
 import com.vatti.chzscout.backend.stream.domain.Stream;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.unions.MessageChannelUnion;
@@ -75,7 +76,7 @@ class MessageListenerTest {
 
       // then
       verify(channel, never()).sendMessage(anyString());
-      verify(aiChatService, never()).analyzeUserMessage(anyString());
+      verify(aiChatService, never()).analyzeUserMessageAsync(anyString());
       verify(eventPublisher, never()).publishEvent(any());
     }
 
@@ -92,7 +93,7 @@ class MessageListenerTest {
       // then
       verify(channel).sendMessage(contains("너무 짧아요"));
       verify(messageCreateAction).queue();
-      verify(aiChatService, never()).analyzeUserMessage(anyString());
+      verify(aiChatService, never()).analyzeUserMessageAsync(anyString());
     }
 
     @Test
@@ -109,19 +110,20 @@ class MessageListenerTest {
       // then
       verify(channel).sendMessage(contains("너무 길어요"));
       verify(messageCreateAction).queue();
-      verify(aiChatService, never()).analyzeUserMessage(anyString());
+      verify(aiChatService, never()).analyzeUserMessageAsync(anyString());
     }
 
     @Test
     @DisplayName("추천 요청 시 벡터 기반 방송 추천 결과를 이벤트로 발행한다")
-    void publishesVectorRecommendationResults() {
+    void publishesVectorRecommendationResults() throws InterruptedException {
       // given
       given(author.isBot()).willReturn(false);
       given(message.getContentRaw()).willReturn("롤 방송 추천해줘");
 
       UserMessageAnalysisResult analysisResult =
           new UserMessageAnalysisResult("recommendation", List.of(), List.of("롤"), null);
-      given(aiChatService.analyzeUserMessage("롤 방송 추천해줘")).willReturn(analysisResult);
+      given(aiChatService.analyzeUserMessageAsync("롤 방송 추천해줘"))
+          .willReturn(CompletableFuture.completedFuture(analysisResult));
 
       List<Stream> streams =
           List.of(
@@ -132,6 +134,7 @@ class MessageListenerTest {
 
       // when
       messageListener.onMessageReceived(event);
+      Thread.sleep(100); // 비동기 처리 대기
 
       // then
       ArgumentCaptor<AiMessageResponseReceivedEvent> captor =
@@ -147,18 +150,20 @@ class MessageListenerTest {
 
     @Test
     @DisplayName("추천 결과가 없으면 안내 메시지를 이벤트로 발행한다")
-    void publishesNoResultsMessage() {
+    void publishesNoResultsMessage() throws InterruptedException {
       // given
       given(author.isBot()).willReturn(false);
       given(message.getContentRaw()).willReturn("특이한게임 방송 추천해줘");
 
       UserMessageAnalysisResult analysisResult =
           new UserMessageAnalysisResult("recommendation", List.of(), List.of("특이한게임"), null);
-      given(aiChatService.analyzeUserMessage("특이한게임 방송 추천해줘")).willReturn(analysisResult);
+      given(aiChatService.analyzeUserMessageAsync("특이한게임 방송 추천해줘"))
+          .willReturn(CompletableFuture.completedFuture(analysisResult));
       given(vectorRecommendService.recommend(anyString(), eq(5))).willReturn(List.of());
 
       // when
       messageListener.onMessageReceived(event);
+      Thread.sleep(100); // 비동기 처리 대기
 
       // then
       ArgumentCaptor<AiMessageResponseReceivedEvent> captor =
@@ -172,17 +177,19 @@ class MessageListenerTest {
 
     @Test
     @DisplayName("greeting 의도면 GPT 응답을 이벤트로 발행한다")
-    void publishesDirectReplyForGreeting() {
+    void publishesDirectReplyForGreeting() throws InterruptedException {
       // given
       given(author.isBot()).willReturn(false);
       given(message.getContentRaw()).willReturn("안녕하세요");
 
       UserMessageAnalysisResult analysisResult =
           new UserMessageAnalysisResult("greeting", List.of(), List.of(), "안녕하세요! 무엇을 도와드릴까요?");
-      given(aiChatService.analyzeUserMessage("안녕하세요")).willReturn(analysisResult);
+      given(aiChatService.analyzeUserMessageAsync("안녕하세요"))
+          .willReturn(CompletableFuture.completedFuture(analysisResult));
 
       // when
       messageListener.onMessageReceived(event);
+      Thread.sleep(100); // 비동기 처리 대기
 
       // then
       ArgumentCaptor<AiMessageResponseReceivedEvent> captor =
@@ -197,17 +204,19 @@ class MessageListenerTest {
 
     @Test
     @DisplayName("other 의도면 fallback 메시지를 이벤트로 발행한다")
-    void publishesFallbackForOther() {
+    void publishesFallbackForOther() throws InterruptedException {
       // given
       given(author.isBot()).willReturn(false);
       given(message.getContentRaw()).willReturn("뭐해?");
 
       UserMessageAnalysisResult analysisResult =
           new UserMessageAnalysisResult("other", List.of(), List.of(), null);
-      given(aiChatService.analyzeUserMessage("뭐해?")).willReturn(analysisResult);
+      given(aiChatService.analyzeUserMessageAsync("뭐해?"))
+          .willReturn(CompletableFuture.completedFuture(analysisResult));
 
       // when
       messageListener.onMessageReceived(event);
+      Thread.sleep(100); // 비동기 처리 대기
 
       // then
       ArgumentCaptor<AiMessageResponseReceivedEvent> captor =
@@ -221,15 +230,16 @@ class MessageListenerTest {
 
     @Test
     @DisplayName("AI 서비스 예외 발생 시 에러 메시지를 이벤트로 발행한다")
-    void publishesErrorWhenAiServiceFails() {
+    void publishesErrorWhenAiServiceFails() throws InterruptedException {
       // given
       given(author.isBot()).willReturn(false);
       given(message.getContentRaw()).willReturn("롤 방송 추천해줘");
-      given(aiChatService.analyzeUserMessage(anyString()))
-          .willThrow(new RuntimeException("AI 서비스 오류"));
+      given(aiChatService.analyzeUserMessageAsync(anyString()))
+          .willReturn(CompletableFuture.failedFuture(new RuntimeException("AI 서비스 오류")));
 
       // when
       messageListener.onMessageReceived(event);
+      Thread.sleep(100); // 비동기 처리 대기
 
       // then
       ArgumentCaptor<AiMessageResponseReceivedEvent> captor =
@@ -242,18 +252,20 @@ class MessageListenerTest {
 
     @Test
     @DisplayName("semantic_tags와 keywords를 조합하여 검색 쿼리를 생성한다")
-    void buildsSearchQueryWithTagsAndKeywords() {
+    void buildsSearchQueryWithTagsAndKeywords() throws InterruptedException {
       // given
       given(author.isBot()).willReturn(false);
       given(message.getContentRaw()).willReturn("빡센 롤 방송 추천해줘");
 
       UserMessageAnalysisResult analysisResult =
           new UserMessageAnalysisResult("recommendation", List.of("빡겜"), List.of("롤"), null);
-      given(aiChatService.analyzeUserMessage("빡센 롤 방송 추천해줘")).willReturn(analysisResult);
+      given(aiChatService.analyzeUserMessageAsync("빡센 롤 방송 추천해줘"))
+          .willReturn(CompletableFuture.completedFuture(analysisResult));
       given(vectorRecommendService.recommend(anyString(), eq(5))).willReturn(List.of());
 
       // when
       messageListener.onMessageReceived(event);
+      Thread.sleep(100); // 비동기 처리 대기
 
       // then - 검색 쿼리: "롤 롤 롤 롤 롤 빡겜" (primary keyword 5번 + semantic tags)
       ArgumentCaptor<String> queryCaptor = ArgumentCaptor.forClass(String.class);
@@ -266,7 +278,7 @@ class MessageListenerTest {
 
     @Test
     @DisplayName("여러 키워드가 있으면 첫 번째만 5번 반복하고 나머지는 1번씩 포함한다")
-    void buildsSearchQueryWithMultipleKeywords() {
+    void buildsSearchQueryWithMultipleKeywords() throws InterruptedException {
       // given
       given(author.isBot()).willReturn(false);
       given(message.getContentRaw()).willReturn("여자 롤 방송 추천해줘");
@@ -274,11 +286,13 @@ class MessageListenerTest {
       UserMessageAnalysisResult analysisResult =
           new UserMessageAnalysisResult(
               "recommendation", List.of("실력방송"), List.of("롤", "여자"), null);
-      given(aiChatService.analyzeUserMessage("여자 롤 방송 추천해줘")).willReturn(analysisResult);
+      given(aiChatService.analyzeUserMessageAsync("여자 롤 방송 추천해줘"))
+          .willReturn(CompletableFuture.completedFuture(analysisResult));
       given(vectorRecommendService.recommend(anyString(), eq(5))).willReturn(List.of());
 
       // when
       messageListener.onMessageReceived(event);
+      Thread.sleep(100); // 비동기 처리 대기
 
       // then - 검색 쿼리: "롤 롤 롤 롤 롤 여자 실력방송"
       ArgumentCaptor<String> queryCaptor = ArgumentCaptor.forClass(String.class);
@@ -298,7 +312,7 @@ class MessageListenerTest {
 
     @Test
     @DisplayName("search 의도이고 reply가 있으면 해당 응답을 이벤트로 발행한다")
-    void publishesReplyForSearch() {
+    void publishesReplyForSearch() throws InterruptedException {
       // given
       given(author.isBot()).willReturn(false);
       given(message.getContentRaw()).willReturn("우왁굳 방송해?");
@@ -306,10 +320,12 @@ class MessageListenerTest {
       UserMessageAnalysisResult analysisResult =
           new UserMessageAnalysisResult(
               "search", List.of(), List.of("우왁굳"), "현재 우왁굳님은 방송 중이 아닙니다.");
-      given(aiChatService.analyzeUserMessage("우왁굳 방송해?")).willReturn(analysisResult);
+      given(aiChatService.analyzeUserMessageAsync("우왁굳 방송해?"))
+          .willReturn(CompletableFuture.completedFuture(analysisResult));
 
       // when
       messageListener.onMessageReceived(event);
+      Thread.sleep(100); // 비동기 처리 대기
 
       // then
       ArgumentCaptor<AiMessageResponseReceivedEvent> captor =

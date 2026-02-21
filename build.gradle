@@ -53,6 +53,13 @@ dependencies {
 	// OpenAI Java SDK
 	implementation 'com.openai:openai-java:4.13.0'
 
+	// Monitoring - Actuator + Prometheus
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'io.micrometer:micrometer-registry-prometheus'
+
+	// Logging - Loki4j Logback Appender
+	implementation 'com.github.loki4j:loki-logback-appender:2.0.1'
+
 	// PostgreSQL + pgvector (벡터 임베딩 검색용)
 	// Hibernate 7.x는 SqlTypes.VECTOR를 네이티브로 지원
 	runtimeOnly 'org.postgresql:postgresql:42.7.4'
