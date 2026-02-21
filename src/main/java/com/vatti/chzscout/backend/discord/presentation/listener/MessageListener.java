@@ -4,9 +4,12 @@ import com.vatti.chzscout.backend.ai.application.AiChatService;
 import com.vatti.chzscout.backend.ai.application.VectorRecommendService;
 import com.vatti.chzscout.backend.ai.domain.dto.UserMessageAnalysisResult;
 import com.vatti.chzscout.backend.ai.domain.event.AiMessageResponseReceivedEvent;
+import com.vatti.chzscout.backend.member.domain.entity.Member;
+import com.vatti.chzscout.backend.member.infrastructure.MemberRepository;
 import com.vatti.chzscout.backend.stream.domain.Stream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.dv8tion.jda.api.entities.channel.unions.MessageChannelUnion;
@@ -29,6 +32,7 @@ public class MessageListener extends ListenerAdapter {
   private final ApplicationEventPublisher eventPublisher;
   private final AiChatService aiChatService;
   private final VectorRecommendService vectorRecommendService;
+  private final MemberRepository memberRepository;
 
   @Override
   public void onMessageReceived(MessageReceivedEvent event) {
@@ -57,10 +61,12 @@ public class MessageListener extends ListenerAdapter {
       return;
     }
 
+    String discordId = event.getAuthor().getId();
+
     // 비동기로 GPT 분석 후 처리 (Virtual Thread Executor에서 실행)
     aiChatService
         .analyzeUserMessageAsync(content)
-        .thenAccept(analysis -> handleAnalysisResult(channel, analysis, startTime))
+        .thenAccept(analysis -> handleAnalysisResult(channel, discordId, analysis, startTime))
         .exceptionally(
             e -> {
               log.error("메시지 처리 중 오류 발생: {}", e.getMessage(), e);
@@ -72,7 +78,10 @@ public class MessageListener extends ListenerAdapter {
 
   /** 분석 결과를 처리합니다. */
   private void handleAnalysisResult(
-      MessageChannelUnion channel, UserMessageAnalysisResult analysis, long startTime) {
+      MessageChannelUnion channel,
+      String discordId,
+      UserMessageAnalysisResult analysis,
+      long startTime) {
     log.info(
         "의도 분석 결과 - intent: {}, tags: {}, keywords: {}",
         analysis.getIntent(),
@@ -80,7 +89,7 @@ public class MessageListener extends ListenerAdapter {
         analysis.getKeywords());
 
     if (analysis.isRecommendationRequest()) {
-      processMessageAsyncWithEmbedding(channel, analysis, startTime);
+      processMessageAsyncWithEmbedding(channel, discordId, analysis, startTime);
     } else if (analysis.hasDirectReply()) {
       publishResponse(channel, analysis.getReply());
       logElapsedTime(startTime, "직접 응답");
@@ -100,16 +109,30 @@ public class MessageListener extends ListenerAdapter {
    *
    * <p>분석된 semantic_tags + keywords를 조합하여 검색 쿼리를 생성하고, 이를 임베딩하여 유사 방송을 검색합니다. 각 방송을 개별 메시지로 전송하며,
    * 좋아요 버튼을 첨부합니다.
+   *
+   * <p>등록된 회원인 경우 개인화된 추천을, 비회원인 경우 일반 추천을 제공합니다.
    */
   private void processMessageAsyncWithEmbedding(
-      MessageChannelUnion channel, UserMessageAnalysisResult analysis, long startTime) {
+      MessageChannelUnion channel,
+      String discordId,
+      UserMessageAnalysisResult analysis,
+      long startTime) {
     try {
       // 1. semantic_tags + keywords를 조합하여 검색 쿼리 생성
       String searchQuery = buildSearchQuery(analysis);
       log.debug("벡터 검색 쿼리: {}", searchQuery);
 
-      // 2. 벡터 유사도 기반 방송 추천
-      List<Stream> recommend = vectorRecommendService.recommend(searchQuery, RECOMMENDED_NUM);
+      // 2. 회원 조회 후 개인화 추천 또는 일반 추천
+      Optional<Member> memberOpt = memberRepository.findByDiscordId(discordId);
+      List<Stream> recommend;
+
+      if (memberOpt.isPresent()) {
+        log.debug("개인화 추천 적용 - member: {}", memberOpt.get().getUuid());
+        recommend = vectorRecommendService.recommend(searchQuery, memberOpt.get(), RECOMMENDED_NUM);
+      } else {
+        log.debug("비회원 - 일반 추천 적용");
+        recommend = vectorRecommendService.recommend(searchQuery, RECOMMENDED_NUM);
+      }
 
       // 3. 결과 응답
       if (recommend.isEmpty()) {

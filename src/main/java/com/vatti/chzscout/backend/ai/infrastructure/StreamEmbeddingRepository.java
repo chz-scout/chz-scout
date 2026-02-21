@@ -37,13 +37,16 @@ public interface StreamEmbeddingRepository extends JpaRepository<StreamEmbedding
       @Param("queryEmbedding") String queryEmbedding, @Param("limit") int limit);
 
   /**
-   * 쿼리 벡터로 1차 필터링 후, 선호 벡터로 2차 정렬하여 개인화 추천합니다.
+   * 쿼리 벡터로 1차 필터링 후, 쿼리+선호 가중치 혼합 점수로 정렬하여 개인화 추천합니다.
+   *
+   * <p>최종 점수 = (1 - preferenceWeight) * 쿼리유사도 + preferenceWeight * 선호유사도
    *
    * @param queryEmbedding 검색할 쿼리 벡터 (문자열 형식: "[0.1, 0.2, ...]")
    * @param preferenceEmbedding 사용자 선호 벡터 (문자열 형식: "[0.1, 0.2, ...]")
    * @param threshold 쿼리 유사도 최소 임계값 (0.0 ~ 1.0)
+   * @param preferenceWeight 선호 벡터 가중치 (0.0 ~ 1.0)
    * @param limit 반환할 최대 결과 수
-   * @return 선호 벡터 유사도 순으로 정렬된 결과 목록
+   * @return 가중치 혼합 점수 순으로 정렬된 결과 목록
    */
   @Query(
       value =
@@ -51,16 +54,18 @@ public interface StreamEmbeddingRepository extends JpaRepository<StreamEmbedding
               + "  se.channel_id     AS channelId, "
               + "  se.embedding_text AS embeddingText, "
               + "  se.updated_at     AS updatedAt, "
-              + "  1 - (se.embedding <=> CAST(:preferenceEmbedding AS vector)) AS similarity "
+              + "  (1 - :preferenceWeight) * (1 - (se.embedding <=> CAST(:queryEmbedding AS vector))) "
+              + "    + :preferenceWeight * (1 - (se.embedding <=> CAST(:preferenceEmbedding AS vector))) AS similarity "
               + "FROM stream_embedding se "
               + "WHERE 1 - (se.embedding <=> CAST(:queryEmbedding AS vector)) >= :threshold "
-              + "ORDER BY se.embedding <=> CAST(:preferenceEmbedding AS vector) "
+              + "ORDER BY similarity DESC "
               + "LIMIT :limit",
       nativeQuery = true)
   List<StreamEmbeddingWithSimilarity> findPersonalizedRecommendations(
       @Param("queryEmbedding") String queryEmbedding,
       @Param("preferenceEmbedding") String preferenceEmbedding,
       @Param("threshold") double threshold,
+      @Param("preferenceWeight") double preferenceWeight,
       @Param("limit") int limit);
 
   /**

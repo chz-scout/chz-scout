@@ -39,6 +39,10 @@ public class VectorRecommendService implements VectorRecommendUseCase {
   @Value("${recommendation.threshold:0.3}")
   private double similarityThreshold;
 
+  /** 개인화 선호 벡터 가중치 (0.0 ~ 1.0). 나머지는 쿼리 유사도에 할당. */
+  @Value("${recommendation.preference-weight:0.3}")
+  private double preferenceWeight;
+
   @Override
   public List<Stream> recommend(String message, int limit) {
     if (message == null || message.isBlank()) {
@@ -111,14 +115,18 @@ public class VectorRecommendService implements VectorRecommendUseCase {
     List<StreamEmbeddingWithSimilarity> results;
 
     if (preferenceResult != null) {
-      // 3. DB에서 1차 필터링 + 2차 정렬 한 번에 처리
+      // 3. DB에서 1차 필터링 + 가중치 혼합 정렬
       String preferenceEmbeddingString = toVectorString(preferenceResult.embedding());
 
       results =
           streamEmbeddingRepository.findPersonalizedRecommendations(
-              queryEmbeddingString, preferenceEmbeddingString, similarityThreshold, effectiveLimit);
+              queryEmbeddingString,
+              preferenceEmbeddingString,
+              similarityThreshold,
+              preferenceWeight,
+              effectiveLimit);
 
-      log.debug("개인화 추천 완료 - 선호 벡터 적용");
+      log.debug("개인화 추천 완료 - 선호 벡터 적용 (가중치: {})", preferenceWeight);
     } else {
       // 선호 벡터 없으면 쿼리만으로 검색
       results =
