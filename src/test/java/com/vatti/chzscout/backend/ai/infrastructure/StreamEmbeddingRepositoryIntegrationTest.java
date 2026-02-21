@@ -143,6 +143,136 @@ class StreamEmbeddingRepositoryIntegrationTest {
   }
 
   @Nested
+  @DisplayName("findPersonalizedRecommendations 메서드 테스트")
+  class FindPersonalizedRecommendations {
+
+    @BeforeEach
+    void setUp() {
+      streamEmbeddingRepository.deleteAll();
+    }
+
+    @Test
+    @DisplayName("쿼리와 선호 벡터의 가중치 혼합 점수로 정렬한다")
+    void sortsbyWeightedScore() {
+      // given - 3개의 임베딩 저장
+      float[] queryLikeVector = createTestVector(0.1f); // 쿼리와 유사
+      float[] preferenceLikeVector = createTestVector(0.5f); // 선호와 유사
+      float[] balancedVector = createTestVector(0.3f); // 중간
+
+      streamEmbeddingRepository.saveAndFlush(
+          StreamEmbedding.create("channel_query", "쿼리 유사 방송", queryLikeVector));
+      streamEmbeddingRepository.saveAndFlush(
+          StreamEmbedding.create("channel_pref", "선호 유사 방송", preferenceLikeVector));
+      streamEmbeddingRepository.saveAndFlush(
+          StreamEmbedding.create("channel_balanced", "균형 방송", balancedVector));
+
+      String queryEmbedding = toVectorString(createTestVector(0.1f));
+      String preferenceEmbedding = toVectorString(createTestVector(0.5f));
+
+      // when - 쿼리 90%, 선호 10% 가중치
+      List<StreamEmbeddingWithSimilarity> results =
+          streamEmbeddingRepository.findPersonalizedRecommendations(
+              queryEmbedding, preferenceEmbedding, 0.0, 0.1, 3);
+
+      // then - 쿼리 가중치가 높으므로 쿼리 유사 채널이 1위
+      assertThat(results).hasSize(3);
+      assertThat(results.get(0).getChannelId()).isEqualTo("channel_query");
+    }
+
+    @Test
+    @DisplayName("선호 가중치가 높으면 선호 유사 방송이 상위에 온다")
+    void highPreferenceWeightFavorsPreferenceSimilar() {
+      // given
+      float[] queryLikeVector = createTestVector(0.1f);
+      float[] preferenceLikeVector = createTestVector(0.5f);
+
+      streamEmbeddingRepository.saveAndFlush(
+          StreamEmbedding.create("channel_query", "쿼리 유사", queryLikeVector));
+      streamEmbeddingRepository.saveAndFlush(
+          StreamEmbedding.create("channel_pref", "선호 유사", preferenceLikeVector));
+
+      String queryEmbedding = toVectorString(createTestVector(0.1f));
+      String preferenceEmbedding = toVectorString(createTestVector(0.5f));
+
+      // when - 쿼리 10%, 선호 90% 가중치
+      List<StreamEmbeddingWithSimilarity> results =
+          streamEmbeddingRepository.findPersonalizedRecommendations(
+              queryEmbedding, preferenceEmbedding, 0.0, 0.9, 2);
+
+      // then - 선호 가중치가 높으므로 선호 유사 채널이 1위
+      assertThat(results).hasSize(2);
+      assertThat(results.get(0).getChannelId()).isEqualTo("channel_pref");
+    }
+
+    @Test
+    @DisplayName("threshold 미만의 쿼리 유사도는 필터링된다")
+    void filtersResultsBelowThreshold() {
+      // given
+      float[] similarVector = createTestVector(0.1f);
+      float[] differentVector = createTestVector(0.9f);
+
+      streamEmbeddingRepository.saveAndFlush(
+          StreamEmbedding.create("channel_similar", "유사 방송", similarVector));
+      streamEmbeddingRepository.saveAndFlush(
+          StreamEmbedding.create("channel_different", "다른 방송", differentVector));
+
+      String queryEmbedding = toVectorString(createTestVector(0.1f));
+      String preferenceEmbedding = toVectorString(createTestVector(0.5f));
+
+      // when - 높은 threshold 설정
+      List<StreamEmbeddingWithSimilarity> results =
+          streamEmbeddingRepository.findPersonalizedRecommendations(
+              queryEmbedding, preferenceEmbedding, 0.99, 0.3, 5);
+
+      // then - 자기 자신(유사도 1.0)만 threshold 통과
+      assertThat(results).hasSize(1);
+      assertThat(results.get(0).getChannelId()).isEqualTo("channel_similar");
+    }
+
+    @Test
+    @DisplayName("threshold가 0이면 모든 결과를 반환한다")
+    void zeroThresholdReturnsAll() {
+      // given
+      for (int i = 0; i < 5; i++) {
+        streamEmbeddingRepository.saveAndFlush(
+            StreamEmbedding.create("channel_" + i, "방송 " + i, createTestVector(0.1f * i)));
+      }
+
+      String queryEmbedding = toVectorString(createTestVector(0.1f));
+      String preferenceEmbedding = toVectorString(createTestVector(0.5f));
+
+      // when
+      List<StreamEmbeddingWithSimilarity> results =
+          streamEmbeddingRepository.findPersonalizedRecommendations(
+              queryEmbedding, preferenceEmbedding, 0.0, 0.3, 10);
+
+      // then
+      assertThat(results).hasSize(5);
+    }
+
+    @Test
+    @DisplayName("limit 개수만큼만 결과를 반환한다")
+    void respectsLimitParameter() {
+      // given
+      for (int i = 0; i < 10; i++) {
+        streamEmbeddingRepository.saveAndFlush(
+            StreamEmbedding.create("channel_" + i, "방송 " + i, createTestVector(0.1f)));
+      }
+
+      String queryEmbedding = toVectorString(createTestVector(0.1f));
+      String preferenceEmbedding = toVectorString(createTestVector(0.5f));
+
+      // when
+      List<StreamEmbeddingWithSimilarity> results =
+          streamEmbeddingRepository.findPersonalizedRecommendations(
+              queryEmbedding, preferenceEmbedding, 0.0, 0.3, 3);
+
+      // then
+      assertThat(results).hasSize(3);
+    }
+  }
+
+  @Nested
   @DisplayName("기본 CRUD 테스트")
   class BasicCrud {
 

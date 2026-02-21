@@ -4,15 +4,25 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.vatti.chzscout.backend.ai.domain.dto.MemberEmbeddingVectorResult;
+import com.vatti.chzscout.backend.ai.domain.entity.MemberEmbedding;
 import com.vatti.chzscout.backend.ai.domain.entity.StreamEmbedding;
 import com.vatti.chzscout.backend.ai.infrastructure.EmbeddingClient;
+import com.vatti.chzscout.backend.ai.infrastructure.MemberEmbeddingRepository;
+import com.vatti.chzscout.backend.member.domain.entity.Member;
 import com.vatti.chzscout.backend.stream.domain.AllFieldLiveDto;
 import com.vatti.chzscout.backend.stream.fixture.AllFieldLiveDtoFixture;
+import com.vatti.chzscout.backend.tag.application.service.MemberTagService;
+import com.vatti.chzscout.backend.tag.domain.dto.MemberTagListResponse;
+import com.vatti.chzscout.backend.tag.domain.dto.MemberTagResponse;
+import com.vatti.chzscout.backend.tag.domain.entity.TagType;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -21,14 +31,23 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class EmbeddingServiceTest {
 
   @Mock private EmbeddingClient embeddingClient;
+  @Mock private MemberEmbeddingRepository memberEmbeddingRepository;
+  @Mock private MemberTagService memberTagService;
   @Spy private ExecutorService aiExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
   @InjectMocks private EmbeddingService embeddingService;
+
+  @BeforeEach
+  void setUp() {
+    ReflectionTestUtils.setField(embeddingService, "tagWeight", 0.3f);
+    ReflectionTestUtils.setField(embeddingService, "likeWeight", 0.7f);
+  }
 
   private float[] createTestEmbedding() {
     float[] embedding = new float[1536];
@@ -151,6 +170,116 @@ class EmbeddingServiceTest {
       // then
       assertThat(result).isEqualTo(expectedEmbedding);
       verify(embeddingClient).embed("롤 방송 추천");
+    }
+  }
+
+  @Nested
+  @DisplayName("createMemberEmbeddingVector 메서드 테스트")
+  class CreateMemberEmbeddingVector {
+
+    @Mock private Member member;
+
+    @Test
+    @DisplayName("좋아요와 태그가 모두 없으면 null을 반환한다")
+    void returnsNullWhenNoLikesAndNoTags() {
+      // given
+      given(member.getUuid()).willReturn("test-uuid");
+      given(memberEmbeddingRepository.findTop50ByMemberOrderByUpdatedAtDesc(member))
+          .willReturn(List.of());
+      given(memberTagService.getMemberTags("test-uuid"))
+          .willReturn(new MemberTagListResponse(List.of(), List.of()));
+
+      // when
+      MemberEmbeddingVectorResult result = embeddingService.createMemberEmbeddingVector(member);
+
+      // then
+      assertThat(result).isNull();
+    }
+
+    @Test
+    @DisplayName("좋아요만 있으면 좋아요 임베딩 평균을 반환한다")
+    void returnsLikeAverageWhenOnlyLikesExist() {
+      // given
+      given(member.getUuid()).willReturn("test-uuid");
+
+      float[] embedding1 = new float[] {1.0f, 0.0f, 0.0f};
+      float[] embedding2 = new float[] {0.0f, 1.0f, 0.0f};
+      MemberEmbedding like1 = createMemberEmbedding(member, embedding1);
+      MemberEmbedding like2 = createMemberEmbedding(member, embedding2);
+
+      given(memberEmbeddingRepository.findTop50ByMemberOrderByUpdatedAtDesc(member))
+          .willReturn(List.of(like1, like2));
+      given(memberTagService.getMemberTags("test-uuid"))
+          .willReturn(new MemberTagListResponse(List.of(), List.of()));
+
+      // when
+      MemberEmbeddingVectorResult result = embeddingService.createMemberEmbeddingVector(member);
+
+      // then
+      assertThat(result).isNotNull();
+      assertThat(result.uuid()).isEqualTo("test-uuid");
+      // 태그 없으므로 embeddingClient.embed 호출 안됨
+      verify(embeddingClient, never()).embed(anyString());
+    }
+
+    @Test
+    @DisplayName("태그만 있으면 태그 임베딩을 반환한다")
+    void returnsTagEmbeddingWhenOnlyTagsExist() {
+      // given
+      given(member.getUuid()).willReturn("test-uuid");
+      given(memberEmbeddingRepository.findTop50ByMemberOrderByUpdatedAtDesc(member))
+          .willReturn(List.of());
+
+      List<MemberTagResponse> customTags =
+          List.of(new MemberTagResponse("test-uuid", "롤", TagType.CUSTOM));
+      List<MemberTagResponse> categoryTags =
+          List.of(new MemberTagResponse("test-uuid", "FPS", TagType.CATEGORY));
+      given(memberTagService.getMemberTags("test-uuid"))
+          .willReturn(new MemberTagListResponse(customTags, categoryTags));
+
+      float[] tagEmbedding = createTestEmbedding();
+      given(embeddingClient.embed("롤, FPS")).willReturn(tagEmbedding);
+
+      // when
+      MemberEmbeddingVectorResult result = embeddingService.createMemberEmbeddingVector(member);
+
+      // then
+      assertThat(result).isNotNull();
+      assertThat(result.uuid()).isEqualTo("test-uuid");
+      verify(embeddingClient).embed("롤, FPS");
+    }
+
+    @Test
+    @DisplayName("좋아요와 태그 모두 있으면 가중 합산 벡터를 반환한다")
+    void returnsWeightedCombinationWhenBothExist() {
+      // given
+      given(member.getUuid()).willReturn("test-uuid");
+
+      float[] likeEmbedding = new float[] {1.0f, 0.0f, 0.0f};
+      MemberEmbedding like = createMemberEmbedding(member, likeEmbedding);
+      given(memberEmbeddingRepository.findTop50ByMemberOrderByUpdatedAtDesc(member))
+          .willReturn(List.of(like));
+
+      List<MemberTagResponse> customTags =
+          List.of(new MemberTagResponse("test-uuid", "롤", TagType.CUSTOM));
+      given(memberTagService.getMemberTags("test-uuid"))
+          .willReturn(new MemberTagListResponse(customTags, List.of()));
+
+      float[] tagEmbedding = new float[] {0.0f, 1.0f, 0.0f};
+      given(embeddingClient.embed("롤")).willReturn(tagEmbedding);
+
+      // when
+      MemberEmbeddingVectorResult result = embeddingService.createMemberEmbeddingVector(member);
+
+      // then
+      assertThat(result).isNotNull();
+      // 결과는 정규화된 벡터
+      assertThat(result.embedding()).isNotNull();
+      assertThat(result.embedding().length).isEqualTo(3);
+    }
+
+    private MemberEmbedding createMemberEmbedding(Member member, float[] embedding) {
+      return MemberEmbedding.create(member, embedding);
     }
   }
 }

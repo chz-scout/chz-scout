@@ -14,8 +14,11 @@ import com.vatti.chzscout.backend.ai.application.AiChatService;
 import com.vatti.chzscout.backend.ai.application.VectorRecommendService;
 import com.vatti.chzscout.backend.ai.domain.dto.UserMessageAnalysisResult;
 import com.vatti.chzscout.backend.ai.domain.event.AiMessageResponseReceivedEvent;
+import com.vatti.chzscout.backend.member.domain.entity.Member;
+import com.vatti.chzscout.backend.member.infrastructure.MemberRepository;
 import com.vatti.chzscout.backend.stream.domain.Stream;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.User;
@@ -42,6 +45,7 @@ class MessageListenerTest {
   @Mock ApplicationEventPublisher eventPublisher;
   @Mock AiChatService aiChatService;
   @Mock VectorRecommendService vectorRecommendService;
+  @Mock MemberRepository memberRepository;
 
   @InjectMocks MessageListener messageListener;
 
@@ -57,8 +61,12 @@ class MessageListenerTest {
     given(event.getMessage()).willReturn(message);
     given(event.getChannel()).willReturn(channel);
     given(author.getName()).willReturn("테스트유저");
+    given(author.getId()).willReturn("123456789");
     given(channel.getIdLong()).willReturn(123456789L);
     given(channel.sendMessage(anyString())).willReturn(messageCreateAction);
+
+    // 비회원 기본 설정 (개인화 추천 없이 일반 추천 사용)
+    given(memberRepository.findByDiscordId(anyString())).willReturn(Optional.empty());
   }
 
   @Nested
@@ -114,8 +122,8 @@ class MessageListenerTest {
     }
 
     @Test
-    @DisplayName("추천 요청 시 벡터 기반 방송 추천 결과를 이벤트로 발행한다")
-    void publishesVectorRecommendationResults() throws InterruptedException {
+    @DisplayName("추천 요청 시 벡터 기반 방송 추천 결과를 개별 메시지로 전송한다")
+    void sendsIndividualMessagesForRecommendationResults() throws InterruptedException {
       // given
       given(author.isBot()).willReturn(false);
       given(message.getContentRaw()).willReturn("롤 방송 추천해줘");
@@ -132,20 +140,19 @@ class MessageListenerTest {
       // 검색 쿼리: "롤 롤 롤 롤 롤" (5번 반복)
       given(vectorRecommendService.recommend(anyString(), eq(5))).willReturn(streams);
 
+      // sendMessage().addActionRow().queue() 체인 설정
+      given(
+              messageCreateAction.addActionRow(
+                  any(net.dv8tion.jda.api.interactions.components.buttons.Button.class)))
+          .willReturn(messageCreateAction);
+
       // when
       messageListener.onMessageReceived(event);
       Thread.sleep(100); // 비동기 처리 대기
 
-      // then
-      ArgumentCaptor<AiMessageResponseReceivedEvent> captor =
-          ArgumentCaptor.forClass(AiMessageResponseReceivedEvent.class);
-      verify(eventPublisher).publishEvent(captor.capture());
-
-      AiMessageResponseReceivedEvent capturedEvent = captor.getValue();
-      assertThat(capturedEvent.channelId()).isEqualTo(123456789L);
-      assertThat(capturedEvent.response())
-          .contains("https://chzzk.naver.com/live/ch1")
-          .contains("https://chzzk.naver.com/live/ch2");
+      // then - 각 방송에 대해 개별 메시지가 전송되어야 함
+      verify(channel).sendMessage(contains("https://chzzk.naver.com/live/ch1"));
+      verify(channel).sendMessage(contains("https://chzzk.naver.com/live/ch2"));
     }
 
     @Test
@@ -335,6 +342,101 @@ class MessageListenerTest {
       AiMessageResponseReceivedEvent capturedEvent = captor.getValue();
       assertThat(capturedEvent.response()).contains("우왁굳님은 방송 중이 아닙니다");
       verify(vectorRecommendService, never()).recommend(anyString(), anyInt());
+    }
+  }
+
+  @Nested
+  @DisplayName("개인화 추천 테스트")
+  class PersonalizedRecommendation {
+
+    @Mock Member member;
+
+    @Test
+    @DisplayName("등록된 회원이면 개인화 추천을 사용한다")
+    void usesPersonalizedRecommendationForRegisteredMember() throws InterruptedException {
+      // given
+      given(author.isBot()).willReturn(false);
+      given(message.getContentRaw()).willReturn("롤 방송 추천해줘");
+      given(memberRepository.findByDiscordId("123456789")).willReturn(Optional.of(member));
+
+      UserMessageAnalysisResult analysisResult =
+          new UserMessageAnalysisResult("recommendation", List.of(), List.of("롤"), null);
+      given(aiChatService.analyzeUserMessageAsync("롤 방송 추천해줘"))
+          .willReturn(CompletableFuture.completedFuture(analysisResult));
+
+      List<Stream> streams =
+          List.of(
+              new Stream(1, "롤 방송", "thumb.jpg", 1000, "ch1", "스트리머", "리그 오브 레전드", List.of("롤")));
+      // 개인화 추천 메서드 (3개 파라미터) 호출
+      given(vectorRecommendService.recommend(anyString(), eq(member), eq(5))).willReturn(streams);
+
+      given(
+              messageCreateAction.addActionRow(
+                  any(net.dv8tion.jda.api.interactions.components.buttons.Button.class)))
+          .willReturn(messageCreateAction);
+
+      // when
+      messageListener.onMessageReceived(event);
+      Thread.sleep(100);
+
+      // then - 개인화 추천 메서드가 호출되어야 함
+      verify(vectorRecommendService).recommend(anyString(), eq(member), eq(5));
+      verify(vectorRecommendService, never()).recommend(anyString(), eq(5));
+    }
+
+    @Test
+    @DisplayName("비회원이면 일반 추천을 사용한다")
+    void usesBasicRecommendationForNonMember() throws InterruptedException {
+      // given
+      given(author.isBot()).willReturn(false);
+      given(message.getContentRaw()).willReturn("롤 방송 추천해줘");
+      given(memberRepository.findByDiscordId("123456789")).willReturn(Optional.empty());
+
+      UserMessageAnalysisResult analysisResult =
+          new UserMessageAnalysisResult("recommendation", List.of(), List.of("롤"), null);
+      given(aiChatService.analyzeUserMessageAsync("롤 방송 추천해줘"))
+          .willReturn(CompletableFuture.completedFuture(analysisResult));
+
+      List<Stream> streams =
+          List.of(
+              new Stream(1, "롤 방송", "thumb.jpg", 1000, "ch1", "스트리머", "리그 오브 레전드", List.of("롤")));
+      // 일반 추천 메서드 (2개 파라미터) 호출
+      given(vectorRecommendService.recommend(anyString(), eq(5))).willReturn(streams);
+
+      given(
+              messageCreateAction.addActionRow(
+                  any(net.dv8tion.jda.api.interactions.components.buttons.Button.class)))
+          .willReturn(messageCreateAction);
+
+      // when
+      messageListener.onMessageReceived(event);
+      Thread.sleep(100);
+
+      // then - 일반 추천 메서드가 호출되어야 함
+      verify(vectorRecommendService).recommend(anyString(), eq(5));
+      verify(vectorRecommendService, never()).recommend(anyString(), any(Member.class), anyInt());
+    }
+
+    @Test
+    @DisplayName("회원의 Discord ID로 조회한다")
+    void queriesMemberByDiscordId() throws InterruptedException {
+      // given
+      given(author.isBot()).willReturn(false);
+      given(author.getId()).willReturn("987654321");
+      given(message.getContentRaw()).willReturn("롤 방송 추천해줘");
+
+      UserMessageAnalysisResult analysisResult =
+          new UserMessageAnalysisResult("recommendation", List.of(), List.of("롤"), null);
+      given(aiChatService.analyzeUserMessageAsync("롤 방송 추천해줘"))
+          .willReturn(CompletableFuture.completedFuture(analysisResult));
+      given(vectorRecommendService.recommend(anyString(), eq(5))).willReturn(List.of());
+
+      // when
+      messageListener.onMessageReceived(event);
+      Thread.sleep(100);
+
+      // then - Discord ID로 회원 조회
+      verify(memberRepository).findByDiscordId("987654321");
     }
   }
 }
