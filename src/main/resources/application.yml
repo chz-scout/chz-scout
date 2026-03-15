@@ -81,7 +81,14 @@ openai:
 embedding:
   model: text-embedding-3-small
   dimensions: 1536
-  batch-size: 100
+  batch-size: 20
+
+# AI API Rate Limit Settings (Tier 5 기준)
+ai:
+  rate-limit:
+    permits: 200           # 동시 요청 수 제한 (Semaphore)
+    max-retries: 3         # 최대 재시도 횟수
+    initial-backoff-ms: 1000  # 초기 백오프 시간 (ms)
 
 # Management & Actuator Settings
 management:
