@@ -33,8 +33,8 @@ public class EmbeddingService {
   private final MemberEmbeddingRepository memberEmbeddingRepository;
   private final MemberTagService memberTagService;
 
-  /** 배치 처리 시 한 번에 처리할 방송 수. OpenAI API 제한 고려 (최대 2048개). */
-  private static final int BATCH_CHUNK_SIZE = 100;
+  /** 배치 처리 시 한 번에 처리할 방송 수. Rate Limit 고려하여 20개로 설정. */
+  private static final int BATCH_CHUNK_SIZE = 20;
 
   /** 태그 임베딩 가중치 (0.0 ~ 1.0). */
   @Value("${recommendation.weight.tag:0.3}")
